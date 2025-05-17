@@ -434,10 +434,10 @@
                             <input type="checkbox" id="fixHyphenation" checked />
                             <label for="fixHyphenation">Ripara sillabazione</label>
                         </div>
-                        <div class="option-item">
-                            <input type="checkbox" id="smartLineBreaks" checked />
-                            <label for="smartLineBreaks">Mantieni interruzioni di riga solo dopo punteggiatura</label>
-                        </div>
+<div class="option-item">
+    <input type="checkbox" id="smartLineBreaks" checked />
+    <label for="smartLineBreaks">Rigenerazione paragrafi (mantiene solo punteggiatura)</label>
+</div>
                         <div class="option-item">
                             <input type="checkbox" id="detectSpecialSections" checked />
                             <label for="detectSpecialSections">Rileva sezioni speciali</label>
@@ -797,7 +797,29 @@
             goToStep(1);
         }
 
-        // Estrazione del testo dal PDF
+      // Funzione alternativa per estrarre testo da una pagina
+async function getPageText(pageObj) {
+    try {
+        const tokenizedText = await pageObj.getTextContent();
+        
+        if (!tokenizedText.items || tokenizedText.items.length === 0) {
+            return '';
+        }
+        
+        // Metodo 1: Concatena semplicemente tutti gli elementi di testo
+        let pageText = '';
+        for (const item of tokenizedText.items) {
+            if (item.str) {
+                pageText += item.str + ' ';
+            }
+        }
+        
+        return pageText.trim();
+    } catch (error) {
+        console.error('Errore nell\'estrazione del testo della pagina:', error);
+        return '';
+    }
+}
 // Estrazione del testo dal PDF
 async function extractTextFromPdf() {
     if (!currentPdfFile) return;
@@ -818,96 +840,63 @@ async function extractTextFromPdf() {
         
         const numPages = pdfDocument.numPages;
         let fullText = '';
-        let pageContents = []; // Memorizza il contenuto di ogni pagina separatamente
         
         // Estrai il testo da ogni pagina
         for (let i = 1; i <= numPages; i++) {
-            const page = await pdfDocument.getPage(i);
-            const textContent = await page.getTextContent();
-            
-            let pageText = '';
-            let lastY, lastItem;
-            let currentLine = '';
-            let lines = [];
-            
-            // Ordina gli elementi di testo per posizione Y e poi X
-            const sortedItems = textContent.items.sort((a, b) => {
-                if (Math.abs(a.transform[5] - b.transform[5]) > 2) {
-                    // Ordina principalmente per coordinata Y (invertita perché l'origine è in alto)
-                    return b.transform[5] - a.transform[5];
-                } else {
-                    // Se sulla stessa linea, ordina per coordinata X
-                    return a.transform[4] - b.transform[4];
-                }
-            });
-            
-            // Combina gli elementi di testo con un'elaborazione migliorata delle linee
-            for (const item of sortedItems) {
-                // Se è una nuova riga (coordinata Y diversa)
-                if (lastY !== undefined && Math.abs(lastY - item.transform[5]) > 2) {
-                    if (currentLine.trim()) {
-                        lines.push(currentLine.trim());
-                    }
-                    currentLine = item.str;
-                } else {
-                    // Calcola lo spazio tra gli elementi per determinare se è uno spazio reale
-                    if (lastItem) {
-                        const lastTransform = lastItem.transform;
-                        const lastWidth = lastItem.width || 5; // Valore predefinito se manca
-                        const lastEndX = lastTransform[4] + lastWidth;
-                        const currentStartX = item.transform[4];
-                        const spacingThreshold = 3; // Soglia per determinare uno spazio significativo
-                        
-                        if (currentStartX - lastEndX > spacingThreshold) {
-                            currentLine += ' ' + item.str;
-                        } else {
-                            currentLine += item.str;
-                        }
-                    } else {
-                        currentLine += item.str;
+            try {
+                // Ottieni la pagina
+                const page = await pdfDocument.getPage(i);
+                // Estrai il testo usando getTextContent()
+                const textContent = await page.getTextContent();
+                
+                let pageText = '';
+                
+                // Estrai solo il testo ignorando la formattazione
+                for (const item of textContent.items) {
+                    if (item.str) {
+                        pageText += item.str + ' ';
                     }
                 }
                 
-                lastY = item.transform[5];
-                lastItem = item;
+                // Applica la pulizia di base del testo
+                pageText = pageText.replace(/\s+/g, ' ').trim();
+                
+                // Aggiungi interruzioni di paragrafo basate sulla struttura tipica di un libro
+                pageText = pageText.replace(/\. /g, '.\n');
+                pageText = pageText.replace(/\! /g, '!\n');
+                pageText = pageText.replace(/\? /g, '?\n');
+                
+                // Aggiungi il testo della pagina al testo completo
+                fullText += pageText + '\n\n';
+                
+                // Stampa un'anteprima del testo estratto da questa pagina
+                console.log(`Pagina ${i}/${numPages} - Estratti ${pageText.length} caratteri`);
+                if (pageText.length > 0) {
+                    console.log(`Inizio: ${pageText.substring(0, Math.min(50, pageText.length))}`);
+                    console.log(`Fine: ${pageText.substring(Math.max(0, pageText.length - 50))}`);
+                }
+                
+                // Aggiorna la barra di progresso
+                const progress = (i / numPages) * 100;
+                progressBar.style.width = `${progress}%`;
+            } catch (pageError) {
+                console.error(`Errore nell'estrazione della pagina ${i}:`, pageError);
+                // Continua con la pagina successiva anche se questa pagina fallisce
             }
-            
-            // Aggiungi l'ultima riga
-            if (currentLine.trim()) {
-                lines.push(currentLine.trim());
-            }
-            
-            // Unisci le linee in testo
-            pageText = lines.join('\n');
-            
-            // Debug - stampa le prime 100 char di ogni pagina per verificare
-            console.log(`Pagina ${i}/${numPages} - Prime 100 caratteri: ${pageText.substring(0, 100)}...`);
-            
-            // Applica la pulizia del testo
-            pageText = cleanPageText(pageText, i, numPages);
-            
-            // Memorizza il testo della pagina
-            pageContents.push({
-                pageNum: i,
-                content: pageText
-            });
-            
-            // Aggiorna la barra di progresso
-            const progress = (i / numPages) * 100;
-            progressBar.style.width = `${progress}%`;
         }
         
-        // Elabora il testo nel suo insieme
-        fullText = processExtractedText(pageContents);
+        // Pulizia finale del testo
+        fullText = fullText.replace(/\n{3,}/g, '\n\n');
+        fullText = fullText.trim();
         
-        // Debug - stampa la lunghezza del testo totale estratto
+        // Stampa la lunghezza del testo estratto
         console.log(`Testo totale estratto: ${fullText.length} caratteri`);
         if (fullText.length > 0) {
-            console.log(`Inizio: ${fullText.substring(0, 100)}...`);
-            console.log(`Fine: ...${fullText.substring(fullText.length - 100)}`);
+            console.log(`Inizio: ${fullText.substring(0, Math.min(100, fullText.length))}...`);
+            console.log(`Fine: ...${fullText.substring(Math.max(0, fullText.length - 100))}`);
         }
         
-        // Pulisci il testo completo
+        // Salva il testo estratto
         extractedText = fullText;
         
         // Analizza il testo per i metadati e i capitoli
@@ -1240,6 +1229,7 @@ function processExtractedText(pageContents) {
        }
 
    // Rilevamento dei capitoli nel testo
+// Rilevamento dei capitoli nel testo
 function detectChaptersInText(text) {
     // Assicuriamoci che il testo non sia vuoto
     if (!text || text.length === 0) {
@@ -1257,157 +1247,79 @@ function detectChaptersInText(text) {
         chapters = [];
     }
     
-    // Pattern migliorati per rilevare i titoli dei capitoli
-    const chapterPatterns = [
-        // Pattern espliciti per capitoli numerati (case-insensitive)
-        /\n\s*(Capitolo|Chapter|Cap\.|CAPITOLO)\s+(\d+|[IVXLCDM]+)[\s:.-]*(.*)?\n/gi,
-        
-        // Pattern per parti o sezioni
-        /\n\s*(Parte|Part|Sezione|Section|PARTE|PART)\s+(\d+|[IVXLCDM]+)[\s:.-]*(.*)?\n/gi,
-        
-        // Pattern per capitoli con solo numeri o numeri romani
-        /\n\s*(\d+|[IVXLCDM]+)[\s:.-][\s]*(.*)?\n/gi,
-        
-        // Pattern per titoli formattati (caratteri non alfanumerici prima/dopo o tutto maiuscolo)
-        /\n\s*[*_#]{1,3}\s*([A-Z][^.\n]{5,60})[*_#]{0,3}\s*\n/g,
-        
-        // Pattern per titoli in maiuscolo isolati (con almeno una riga vuota prima o dopo)
-        /\n\s*\n\s*([A-ZÀÈÌÒÙ][A-ZÀÈÌÒÙ\s',;:.]{4,60})\s*\n/g,
-        
-        // Pattern per titoli con numeri (es. "1. Introduzione")
-        /\n\s*(\d+[\.\)]+)\s+([A-Z][a-zàèìòùáéíóú\s',;:.]{4,60})\s*\n/g,
-        
-        // Pattern per titoli centrati (circa a metà di una pagina con spazio bianco sopra e sotto)
-        /\n\s*\n\s*\n\s*([A-Z][a-zA-Z\s',;:.]{5,50})\s*\n\s*\n/g
-    ];
+    // Approccio fallback: dividi il testo in sezioni di dimensioni gestibili
+    // Questo garantisce che almeno abbiamo qualche capitolo
+    const sectionSize = 5000; // Circa 2-3 pagine di testo
+    let numSections = Math.max(1, Math.ceil(text.length / sectionSize));
     
-    // Cerca match per ogni pattern
-    let matches = [];
-    
-    for (const pattern of chapterPatterns) {
-        let match;
-        while ((match = pattern.exec(text)) !== null) {
-            // Estrai il titolo del capitolo
-            let chapterTitle;
+    // Se il testo è molto lungo, crea automaticamente delle sezioni
+    if (text.length > sectionSize) {
+        for (let i = 0; i < numSections; i++) {
+            const start = i * sectionSize;
+            const end = Math.min((i + 1) * sectionSize, text.length);
             
-            // Diversi gruppi di cattura in base al pattern
-            if (match[3]) {
-                // Pattern tipo "Capitolo 1: Titolo"
-                chapterTitle = `${match[1]} ${match[2]}: ${match[3].trim()}`;
-            } else if (match[2] && match[1].match(/^\d+[\.\)]$/)) {
-                // Pattern tipo "1. Titolo"
-                chapterTitle = match[2].trim();
-            } else if (match[2]) {
-                // Pattern tipo "Capitolo 1" con titolo o "1. Titolo"
-                chapterTitle = `${match[1]} ${match[2].trim()}`;
-            } else {
-                // Pattern con solo il titolo
-                chapterTitle = match[1].trim();
-            }
-            
-            // Memorizza la posizione dell'inizio del capitolo
-            matches.push({
-                title: chapterTitle,
-                startPosition: match.index,
-                rawMatch: match[0],  // Salva il testo del match per analisi e pulizia
-                type: 'chapter'
-            });
-        }
-    }
-    
-    // Se non troviamo capitoli ma il testo è lungo abbastanza, cerchiamo di suddividerlo in porzioni gestibili
-    if (matches.length === 0 && text.length > 5000) {
-        // Cerca di dividere il testo in parti di circa 3000 caratteri ciascuna
-        // cercando le migliori interruzioni naturali (paragrafi vuoti)
-        const chunkSize = 3000;
-        let position = 0;
-        
-        while (position < text.length) {
-            // Cerca il punto ottimale per dividere il testo (paragrafo vuoto)
-            const endPosition = Math.min(position + chunkSize, text.length);
-            let breakPosition = text.indexOf('\n\n', position + 1000);  // Almeno 1000 caratteri dopo l'inizio
-            
-            if (breakPosition === -1 || breakPosition > endPosition) {
-                // Se non troviamo un punto ottimale, usa la fine di una frase
-                breakPosition = text.lastIndexOf('. ', endPosition) + 1;
-                
-                if (breakPosition <= position) {
-                    // Fallback: usa semplicemente la lunghezza desiderata
-                    breakPosition = endPosition;
+            // Trova un punto di interruzione naturale vicino alla posizione ideale
+            let breakPoint = start;
+            if (i > 0) {
+                // Cerca il primo punto seguito da spazio dopo start
+                const periodIndex = text.indexOf('. ', start);
+                if (periodIndex > start && periodIndex < end - 100) {
+                    breakPoint = periodIndex + 2;
                 }
             }
             
-            matches.push({
-                title: `Parte ${matches.length + 1}`,
-                startPosition: position,
-                rawMatch: '',
-                type: 'chapter'
-            });
+            const sectionEnd = (i === numSections - 1) ? text.length : end;
             
-            position = breakPosition;
-        }
-    }
-    
-    // Aggiungi un pattern per rilevare il testo prima di qualsiasi capitolo (frontmatter)
-    if (matches.length > 0 && matches[0].startPosition > 100) {
-        // C'è del testo significativo prima del primo capitolo
-        const frontMatterText = text.substring(0, matches[0].startPosition);
-        
-        // Dividi il frontmatter in sezioni logiche
-        detectFrontMatterSections(frontMatterText);
-    }
-    
-    // Ordina i match per posizione
-    matches.sort((a, b) => a.startPosition - b.startPosition);
-    
-    // Rimuovi i duplicati e i falsi positivi
-    matches = cleanupChapterMatches(matches, text);
-    
-    // Crea i capitoli
-    if (matches.length > 0) {
-        for (let i = 0; i < matches.length; i++) {
-            const startPos = matches[i].startPosition;
-            const endPos = (i < matches.length - 1) ? matches[i+1].startPosition : text.length;
-            
-            // Ottieni il contenuto del capitolo
-            let chapterContent;
-            if (matches[i].rawMatch) {
-                // Escludi il titolo se lo abbiamo identificato come pattern
-                const titleLength = matches[i].rawMatch.length;
-                chapterContent = text.substring(startPos + titleLength, endPos).trim();
-            } else {
-                // Altrimenti includi tutto il testo
-                chapterContent = text.substring(startPos, endPos).trim();
+            // Cerca un punto di fine naturale
+            let endPoint = sectionEnd;
+            if (i < numSections - 1) {
+                // Cerca l'ultimo punto prima di end
+                const lastPeriod = text.lastIndexOf('. ', end);
+                if (lastPeriod > start + 100 && lastPeriod < end) {
+                    endPoint = lastPeriod + 2;
+                }
             }
             
+            const sectionContent = text.substring(breakPoint, endPoint);
+            
             chapters.push({
-                title: matches[i].title,
-                rawTitle: matches[i].rawMatch ? matches[i].rawMatch.trim() : '',
-                startPosition: startPos,
-                content: chapterContent,
+                title: `Sezione ${i + 1}`,
+                startPosition: breakPoint,
+                content: sectionContent,
                 type: 'chapter'
             });
         }
-    } 
-    
-    // Se non abbiamo ancora capitoli, crea un unico capitolo con tutto il testo
-    if (chapters.length === 0) {
-        chapters = [{
+    } else {
+        // Se il testo è breve, consideralo come un unico capitolo
+        chapters.push({
             title: 'Intero documento',
             startPosition: 0,
             content: text,
             type: 'normal'
-        }];
+        });
     }
     
-    // Ordina tutti i capitoli e le sezioni per posizione
-    chapters.sort((a, b) => a.startPosition - b.startPosition);
+    // Rileva potenziali titoli nel testo per migliorare i titoli delle sezioni
+    const titlePattern = /\n([A-Z][A-Za-zÀ-ú\s',;:.]{5,60})\n/g;
+    let titleMatch;
     
-    // Debug - verifica che ogni capitolo abbia contenuto
+    while ((titleMatch = titlePattern.exec(text)) !== null) {
+        // Verifica se questo titolo è all'inizio di un capitolo esistente
+        const titlePos = titleMatch.index;
+        const matchingChapter = chapters.find(ch => 
+            Math.abs(ch.startPosition - titlePos) < 200);
+        
+        if (matchingChapter) {
+            // Aggiorna il titolo del capitolo
+            matchingChapter.title = titleMatch[1].trim();
+        }
+    }
+    
+    // Debug - verifica il contenuto dei capitoli
     for (let i = 0; i < chapters.length; i++) {
-        console.log(`Capitolo ${i+1}: "${chapters[i].title}" - Caratteri: ${chapters[i].content.length}`);
-        if (chapters[i].content.length === 0) {
-            console.warn(`ATTENZIONE: Capitolo ${i+1} vuoto!`);
+        console.log(`Capitolo ${i+1}: "${chapters[i].title}" - ${chapters[i].content.length} caratteri`);
+        if (chapters[i].content.length > 0) {
+            console.log(`Inizio: ${chapters[i].content.substring(0, Math.min(50, chapters[i].content.length))}`);
         }
     }
 }
