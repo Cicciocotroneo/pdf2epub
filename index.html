@@ -3,355 +3,335 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF to EPUB Converter</title>
-    <meta name="description" content="Converti PDF in EPUB ottimizzato per eBook">
-    <meta name="theme-color" content="#4a6fa5">
-    <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>Convertitore PDF to EPUB</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
     <style>
-        :root {
-            --primary-color: #4a6fa5;
-            --secondary-color: #6b8cbc;
-            --background-color: #f5f7fa;
-            --text-color: #333;
-            --light-text: #666;
-            --border-color: #ddd;
-            --success-color: #4caf50;
-            --warning-color: #ff9800;
-            --error-color: #f44336;
-        }
-        
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-        
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: var(--text-color);
-            background-color: var(--background-color);
-            padding: 20px;
-            max-width: 1000px;
+            font-family: Arial, sans-serif;
+            max-width: 900px;
             margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
         }
-        
-        header {
-            text-align: center;
-            margin-bottom: 30px;
-            padding: 20px 0;
-        }
-        
         h1 {
-            color: var(--primary-color);
-            margin-bottom: 10px;
-        }
-        
-        .description {
-            color: var(--light-text);
-            margin-bottom: 20px;
-        }
-        
-        .upload-container {
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            padding: 30px;
-            margin-bottom: 20px;
+            color: #333;
             text-align: center;
         }
-        
-        .drop-area {
-            border: 2px dashed var(--border-color);
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .upload-section {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
             border-radius: 5px;
-            padding: 40px;
-            margin-bottom: 20px;
-            cursor: pointer;
-            transition: all 0.3s;
         }
-        
-        .drop-area.highlight {
-            border-color: var(--primary-color);
-            background-color: rgba(74, 111, 165, 0.05);
-        }
-        
-        .drop-area i {
-            font-size: 48px;
-            color: var(--primary-color);
-            margin-bottom: 15px;
-        }
-        
-        .file-input {
+        .preview-section {
             display: none;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
         }
-        
-        .btn {
-            background-color: var(--primary-color);
+        textarea {
+            width: 100%;
+            height: 300px;
+            font-family: monospace;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
             color: white;
             border: none;
-            padding: 12px 24px;
-            border-radius: 5px;
-            cursor: pointer;
+            padding: 10px 15px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
             font-size: 16px;
-            transition: background-color 0.3s;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 5px;
         }
-        
-        .btn:hover {
-            background-color: var(--secondary-color);
-        }
-        
-        .btn i {
-            margin-right: 8px;
-        }
-        
-        .btn:disabled {
-            background-color: var(--border-color);
+        button:disabled {
+            background-color: #cccccc;
             cursor: not-allowed;
         }
-        
-        .btn-secondary {
-            background-color: var(--light-text);
-            margin-left: 10px;
-        }
-        
-        .btn-secondary:hover {
-            background-color: #555;
-        }
-        
-        .options {
-            margin: 20px 0;
-            text-align: left;
-        }
-        
-        .option-group {
-            margin-bottom: 15px;
-        }
-        
-        .option-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 500;
-        }
-        
-        .option-group input[type="checkbox"] {
-            margin-right: 10px;
-        }
-        
-        .progress-container {
-            display: none;
-            margin-top: 20px;
-        }
-        
         .progress-bar {
-            height: 10px;
-            background-color: var(--border-color);
-            border-radius: 5px;
-            margin-bottom: 10px;
-            overflow: hidden;
-        }
-        
-        .progress {
-            height: 100%;
-            background-color: var(--primary-color);
-            width: 0%;
-            transition: width 0.3s;
-        }
-        
-        .status {
-            font-size: 14px;
-            color: var(--light-text);
-            text-align: center;
-        }
-        
-        .result {
-            display: none;
-            text-align: center;
-            margin-top: 20px;
-        }
-        
-        .result a {
-            display: inline-block;
-            margin-top: 15px;
-        }
-        
-        .preview-container {
-            display: none;
-            margin-top: 30px;
-            text-align: left;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            max-height: 500px;
-            overflow-y: auto;
-        }
-        
-        .preview-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid var(--border-color);
-        }
-        
-        .preview-content {
-            font-family: serif;
-            line-height: 1.6;
-        }
-        
-        .preview-page {
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 1px dashed #eee;
-        }
-        
-        .preview-page:last-child {
-            border-bottom: none;
-        }
-        
-        .chapter-title {
-            font-size: 1.5em;
-            text-align: center;
-            margin: 1em 0;
-            color: var(--primary-color);
-            font-weight: bold;
-        }
-        
-        .page-number {
-            font-size: 0.8em;
-            color: var(--light-text);
-            text-align: right;
-            margin-top: 5px;
-        }
-        
-        .edit-area {
             width: 100%;
-            min-height: 100px;
-            padding: 10px;
+            background-color: #f1f1f1;
+            border-radius: 5px;
             margin-top: 10px;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            font-family: inherit;
+            display: none;
         }
-        
-        .edit-controls {
-            margin-top: 10px;
-            text-align: right;
-        }
-        
-        footer {
+        .progress {
+            height: 20px;
+            background-color: #4CAF50;
+            border-radius: 5px;
+            width: 0%;
             text-align: center;
-            margin-top: 40px;
-            color: var(--light-text);
-            font-size: 14px;
-        }
-        
-        @media (max-width: 600px) {
-            body {
-                padding: 10px;
-            }
-            
-            .upload-container {
-                padding: 20px;
-            }
-            
-            .drop-area {
-                padding: 30px 20px;
-            }
-            
-            .btn {
-                width: 100%;
-                margin-bottom: 10px;
-            }
-            
-            .btn-secondary {
-                margin-left: 0;
-            }
+            line-height: 20px;
+            color: white;
         }
     </style>
 </head>
 <body>
-    <header>
-        <h1><i class="fas fa-book-open"></i> PDF to EPUB Converter</h1>
-        <p class="description">Converti i tuoi PDF in eBook EPUB ottimizzati per la lettura</p>
-    </header>
-    
-    <main>
-        <div class="upload-container">
-            <div id="dropArea" class="drop-area">
-                <i class="fas fa-file-pdf"></i>
-                <h3>Trascina il tuo PDF qui</h3>
-                <p>oppure</p>
-                <button id="selectFileBtn" class="btn"><i class="fas fa-folder-open"></i> Seleziona file</button>
-                <input type="file" id="fileInput" class="file-input" accept=".pdf">
-            </div>
-            
-            <div class="options">
-                <div class="option-group">
-                    <label>
-                        <input type="checkbox" id="removePageNumbers" checked>
-                        Rimuovi numeri di pagina
-                    </label>
-                </div>
-                <div class="option-group">
-                    <label>
-                        <input type="checkbox" id="removeHeaders" checked>
-                        Rimuovi intestazioni ripetute
-                    </label>
-                </div>
-                <div class="option-group">
-                    <label>
-                        <input type="checkbox" id="reconstructText" checked>
-                        Ricostruisci flusso del testo
-                    </label>
-                </div>
-                <div class="option-group">
-                    <label>
-                        <input type="checkbox" id="detectChapters" checked>
-                        Riconosci capitoli e crea indice
-                    </label>
-                </div>
-            </div>
-            
-            <button id="convertBtn" class="btn" disabled><i class="fas fa-exchange-alt"></i> Converti in EPUB</button>
-            <button id="previewBtn" class="btn btn-secondary" disabled><i class="fas fa-eye"></i> Anteprima</button>
-            
-            <div id="progressContainer" class="progress-container">
-                <div class="progress-bar">
-                    <div id="progress" class="progress"></div>
-                </div>
-                <p id="status" class="status">Elaborazione in corso...</p>
-            </div>
-            
-            <div id="result" class="result">
-                <h3><i class="fas fa-check-circle" style="color: var(--success-color);"></i> Conversione completata!</h3>
-                <a id="downloadLink" href="#" class="btn"><i class="fas fa-download"></i> Scarica EPUB</a>
-            </div>
-            
-            <div id="previewContainer" class="preview-container">
-                <div class="preview-header">
-                    <h3>Anteprima del testo elaborato</h3>
-                    <button id="closePreviewBtn" class="btn btn-secondary"><i class="fas fa-times"></i> Chiudi</button>
-                </div>
-                <div id="previewContent" class="preview-content">
-                    <!-- Il contenuto dell'anteprima verrà inserito qui -->
-                </div>
-            </div>
+    <h1>Convertitore PDF to EPUB</h1>
+    <div class="container">
+        <div class="upload-section">
+            <h3>Carica il tuo file PDF</h3>
+            <input type="file" id="pdfInput" accept=".pdf">
+            <p>Trasformerò il PDF in EPUB rimuovendo numeri di pagina, intestazioni ripetute e interruzioni non necessarie.</p>
         </div>
-    </main>
-    
-    <footer>
-        <p>Questa applicazione funziona offline dopo il primo utilizzo</p>
-    </footer>
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <script src="app.js"></script>
+        
+        <div class="preview-section">
+            <h3>Anteprima del testo</h3>
+            <p>Modifica il testo se necessario, poi procedi con la conversione.</p>
+            <textarea id="previewText"></textarea>
+            <button id="convertBtn">Converti in EPUB</button>
+        </div>
+        
+        <div class="progress-bar" id="progressContainer">
+            <div class="progress" id="progressBar">0%</div>
+        </div>
+    </div>
+
+    <script>
+        // Inizializza PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js';
+        
+        let extractedText = '';
+        let chapterPositions = [];
+        
+        document.getElementById('pdfInput').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const arrayBuffer = await file.arrayBuffer();
+            const loadingTask = pdfjsLib.getDocument(arrayBuffer);
+            
+            try {
+                const pdf = await loadingTask.promise;
+                const numPages = pdf.numPages;
+                extractedText = '';
+                chapterPositions = [];
+                
+                // Analizza ogni pagina
+                for (let i = 1; i <= numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    
+                    // Estrai il testo e analizza la struttura
+                    const pageText = processPageText(textContent.items, i);
+                    
+                    // Verifica se è una pagina di capitolo (vuota o con margine superiore grande)
+                    if (isChapterPage(textContent.items, page)) {
+                        chapterPositions.push(extractedText.length);
+                    }
+                    
+                    // Aggiorna la barra di progresso
+                    updateProgress(i, numPages);
+                }
+                
+                // Mostra l'anteprima
+                document.getElementById('previewText').value = extractedText;
+                document.querySelector('.preview-section').style.display = 'block';
+                document.getElementById('progressContainer').style.display = 'none';
+                
+            } catch (error) {
+                console.error('Errore durante il processing del PDF:', error);
+                alert('Si è verificato un errore durante il processing del PDF.');
+            }
+        });
+        
+        function processPageText(textItems, pageNum) {
+            let pageText = '';
+            let prevItem = null;
+            let isHeaderFooter = false;
+            
+            // Analizza ogni elemento di testo nella pagina
+            for (const item of textItems) {
+                // Ignora elementi con font molto piccoli (tipici di numeri di pagina)
+                if (item.height < 10) continue;
+                
+                // Verifica se l'elemento è nell'area di header/footer
+                if (item.transform[5] < 50 || item.transform[5] > 750) {
+                    isHeaderFooter = true;
+                } else {
+                    isHeaderFooter = false;
+                }
+                
+                // Se non è header/footer, processa il testo
+                if (!isHeaderFooter) {
+                    // Unisci le parole divise da hyphenation
+                    if (prevItem && prevItem.str.endsWith('-')) {
+                        pageText = pageText.slice(0, -1) + item.str;
+                    } else {
+                        // Aggiungi spazio se necessario
+                        if (prevItem && !isPunctuation(prevItem.str) && !item.str.startsWith(' ')) {
+                            pageText += ' ';
+                        }
+                        pageText += item.str;
+                    }
+                    
+                    // Aggiungi a capo dopo punteggiatura rilevante
+                    if (isRelevantPunctuation(item.str)) {
+                        pageText += '\n';
+                    }
+                    
+                    prevItem = item;
+                }
+            }
+            
+            return pageText;
+        }
+        
+        function isChapterPage(textItems, page) {
+            // Verifica se la pagina è vuota o quasi
+            if (textItems.length < 5) return true;
+            
+            // Verifica margine superiore grande (primo elemento molto in basso)
+            const firstItem = textItems[0];
+            if (firstItem.transform[5] < page.view[3] - 100) return true;
+            
+            return false;
+        }
+        
+        function isPunctuation(str) {
+            return /^[.,;:!?)]$/.test(str.trim());
+        }
+        
+        function isRelevantPunctuation(str) {
+            return /^[.!?]$/.test(str.trim());
+        }
+        
+        function updateProgress(current, total) {
+            const progress = Math.round((current / total) * 100);
+            document.getElementById('progressBar').style.width = progress + '%';
+            document.getElementById('progressBar').innerText = progress + '%';
+            document.getElementById('progressContainer').style.display = 'block';
+        }
+        
+        document.getElementById('convertBtn').addEventListener('click', function() {
+            const finalText = document.getElementById('previewText').value;
+            createEPUB(finalText);
+        });
+        
+        function createEPUB(text) {
+            const zip = new JSZip();
+            const now = new Date();
+            const dateStr = now.toISOString().split('T')[0];
+            
+            // Crea la struttura base dell'EPUB
+            const mimetype = zip.folder("mimetype");
+            mimetype.file("mimetype", "application/epub+zip");
+            
+            const metaInf = zip.folder("META-INF");
+            metaInf.file("container.xml", `<?xml version="1.0"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`);
+            
+            const oebps = zip.folder("OEBPS");
+            
+            // Divide il testo in capitoli
+            let chapters = [];
+            if (chapterPositions.length > 0) {
+                let start = 0;
+                for (const pos of chapterPositions) {
+                    chapters.push(text.substring(start, pos).trim());
+                    start = pos;
+                }
+                chapters.push(text.substring(start).trim());
+            } else {
+                chapters = [text];
+            }
+            
+            // Crea i file HTML per ogni capitolo
+            let tocItems = '';
+            let manifestItems = '';
+            let spineItems = '';
+            
+            chapters.forEach((chapter, index) => {
+                const chapterNum = index + 1;
+                const chapterId = `chapter${chapterNum}`;
+                const chapterFile = `${chapterId}.xhtml`;
+                
+                oebps.file(chapterFile, `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+<head>
+    <title>Capitolo ${chapterNum}</title>
+    <meta charset="UTF-8"/>
+    <style>
+        body { margin: 1em; line-height: 1.5; }
+        p { margin: 0; text-align: justify; }
+    </style>
+</head>
+<body>
+    ${chapter.split('\n').map(para => para.trim() ? `<p>${para}</p>` : '').join('')}
+</body>
+</html>`);
+                
+                tocItems += `<li><a href="${chapterFile}">Capitolo ${chapterNum}</a></li>\n`;
+                manifestItems += `<item id="${chapterId}" href="${chapterFile}" media-type="application/xhtml+xml"/>\n`;
+                spineItems += `<itemref idref="${chapterId}"/>\n`;
+            });
+            
+            // Crea il file TOC
+            oebps.file("toc.ncx", `<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+<head>
+    <meta name="dtb:uid" content="bookid"/>
+    <meta name="dtb:depth" content="1"/>
+    <meta name="dtb:totalPageCount" content="0"/>
+    <meta name="dtb:maxPageNumber" content="0"/>
+</head>
+<docTitle><text>Libro Convertito</text></docTitle>
+<navMap>
+    ${tocItems}
+</navMap>
+</ncx>`);
+            
+            // Crea il file content.opf
+            oebps.file("content.opf", `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">
+<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="bookid">urn:uuid:${generateUUID()}</dc:identifier>
+    <dc:title>Libro Convertito</dc:title>
+    <dc:language>it</dc:language>
+    <dc:creator>Convertitore PDF to EPUB</dc:creator>
+    <dc:date>${dateStr}</dc:date>
+</metadata>
+<manifest>
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+    ${manifestItems}
+</manifest>
+<spine toc="ncx">
+    ${spineItems}
+</spine>
+</package>`);
+            
+            // Genera e scarica il file EPUB
+            zip.generateAsync({type:"blob"}).then(function(content) {
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(content);
+                a.download = "converted_book.epub";
+                a.click();
+            });
+        }
+        
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+    </script>
 </body>
 </html>
