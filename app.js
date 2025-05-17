@@ -414,50 +414,39 @@ function readFileAsArrayBuffer(file) {
     });
 }
 
-// Elabora il testo estratto
+// Funzione principale di elaborazione
 function processText(pagesText) {
-    let processedPages = [];
-    let headerFooterPatterns = detectHeaderFooterPatterns(pagesText);
-    
-    for (let i = 0; i < pagesText.length; i++) {
-        let text = pagesText[i];
-        
-        // Rimuovi intestazioni/piè di pagina
-        if (removeHeaders.checked && headerFooterPatterns) {
-            if (headerFooterPatterns.header) {
-                text = text.replace(new RegExp(headerFooterPatterns.header, 'g'), '');
-            }
-            if (headerFooterPatterns.footer) {
-                text = text.replace(new RegExp(headerFooterPatterns.footer, 'g'), '');
-            }
-        }
-        
+    // 1. Pre-elaborazione di ogni pagina
+    const cleanedPages = pagesText.map((text, i) => {
         // Rimuovi numeri di pagina
-        if (removePageNumbers.checked) {
-            // Pattern per numeri di pagina
-            text = text.replace(/^\s*\d+\s*$/gm, ''); // Solo numero
-            text = text.replace(/^\s*[-–]\s*\d+\s*[-–]\s*$/gm, ''); // Numero tra trattini
-            text = text.replace(/^\s*Pagina?\s*\d+\s*$/gim, ''); // "Pagina X"
-            // Rimuovi numeri in basso a destra/sinistra
-            text = text.replace(/\n\d+\s*$/g, ''); // Fine pagina
-            text = text.replace(/^\d+\s*\n/g, ''); // Inizio pagina
+        let cleaned = removePageNumbers(text, i);
+        
+        // Rimuovi intestazioni/piè di pagina (se richiesto)
+        if (removeHeaders.checked) {
+            cleaned = removeHeadersAndFooters(cleaned);
         }
         
-        // Ricostruisci flusso del testo
-        if (reconstructText.checked) {
-            text = reconstructTextFlow(text);
-        }
-        
-        processedPages.push(text);
-    }
+        return cleaned;
+    });
     
-    // Riconosci capitoli se richiesto
-    if (detectChapters.checked) {
-        return detectChaptersAndStructure(processedPages);
-    }
+    // 2. Riconoscimento struttura capitoli
+    const chapters = detectChapters.checked ? 
+        detectChaptersAndStructure(cleanedPages) : 
+        [{
+            title: 'Documento completo',
+            rawText: reconstructTextFlow(cleanedPages.join('\n'))
+        }];
     
-    return {pages: processedPages, chapters: null};
+    // 3. Ricostruzione finale del testo
+    return chapters.map(chapter => ({
+        ...chapter,
+        // Ricostruisci il flusso del testo per l'EPUB
+        epubContent: chapter.rawText.split('\n\n')
+            .map(para => `<p>${para}</p>`)
+            .join('\n')
+    }));
 }
+
 
 // Riconosci pattern di intestazioni/piè di pagina ripetuti
 function detectHeaderFooterPatterns(pagesText) {
@@ -479,7 +468,28 @@ function detectHeaderFooterPatterns(pagesText) {
             lastLines: lines.slice(-2) // Ultime 2 righe per piè di pagina
         };
     });
-    
+    function removePageNumbers(text, pageIndex) {
+    // Pattern per numeri di pagina in varie forme:
+    // 1. Solo numero (es. "123")
+    // 2. Numero tra trattini (es. "- 123 -")
+    // 3. Testo "Pagina X" in varie forme
+    // 4. Numeri in fondo alla pagina (destra/sinistra)
+    const pageNumPatterns = [
+        /^\s*\d+\s*$/gm,                       // Solo numero
+        /^\s*[-–]\s*\d+\s*[-–]\s*$/gm,         // Numero tra trattini
+        /^\s*Pagina?\s*\d+\s*$/gim,            // "Pagina X"
+        /\n\d+\s*$/g,                           // Fine pagina (destra)
+        /^\d+\s*\n/g,                           // Inizio pagina (sinistra)
+        /\b\d{1,3}\s+(?=\n|$)/g                 // Numeri solitari vicino a interruzioni
+    ];
+
+    // Rimuovi ogni occorrenza per ogni pattern
+    pageNumPatterns.forEach(pattern => {
+        text = text.replace(pattern, '');
+    });
+
+    return text;
+}
     // Cerca intestazioni comuni
     let potentialHeaders = [];
     for (let i = 0; i < linesByPage[0].firstLines.length; i++) {
@@ -510,121 +520,114 @@ function detectHeaderFooterPatterns(pagesText) {
     };
 }
 
-// Ricostruisci il flusso del testo
+// Funzione migliorata per ricostruire il flusso del testo
 function reconstructTextFlow(text) {
-    // Unisci le parole sillabate con maggiore accuratezza
-    text = text.replace(/(\w+)-\s+(\w+[^.!?:])/g, '$1$2'); // Non unire se seguito da punteggiatura
+    // 1. Unisci parole sillabate (ma non dopo punteggiatura)
+    text = text.replace(/([a-zàèéìòù])-\s+([a-zàèéìòù])/gi, '$1$2');
     
-    // Gestione delle virgolette e trattini di dialogo
-    text = text.replace(/"\s+([^"]+)\s+"/g, '"$1"'); // Virgolette con spazi interni
-    text = text.replace(/'s\s+/g, "'s "); // Mantieni apostrofi possessivi
-    text = text.replace(/(\w)\s+-\s+(\w)/g, '$1-$2'); // Trattini tra parole
+    // 2. Normalizza spazi e interruzioni
+    text = text.replace(/\s+/g, ' ');
     
-    // Rimuovi interruzioni di riga non necessarie
-    let lines = text.split('\n');
-    let reconstructedText = '';
-    let currentParagraph = '';
+    // 3. Ricostruisci paragrafi basati sulla punteggiatura
+    const sentences = text.split(/([.!?:…]+["']?\s+)/);
+    let reconstructed = '';
     
-    for (let line of lines) {
-        line = line.trim();
-        if (!line) continue;
+    for (let i = 0; i < sentences.length; i += 2) {
+        const sentence = sentences[i];
+        const punctuation = sentences[i+1] || '';
         
-        // Se la linea termina con un carattere di fine frase, mantieni l'interruzione
-        if (/[.!?:”"»]$/.test(line)) {
-            currentParagraph += line + ' ';
-            reconstructedText += currentParagraph + '\n\n';
-            currentParagraph = '';
-        } 
-        // Se inizia con maiuscola dopo punteggiatura, probabilmente è una nuova frase
-        else if (/^[A-ZÀÈÉÌÒÙ]/.test(line) && currentParagraph.length > 0 && /[.!?:”"]$/.test(currentParagraph.trim())) {
-            currentParagraph += '\n' + line + ' ';
-        }
-        else {
-            currentParagraph += line + ' ';
+        if (sentence) {
+            // Aggiungi spazio solo se non inizia con un segno di punteggiatura
+            if (reconstructed && !/[([{"']$/.test(reconstructed.slice(-1))) {
+                reconstructed += ' ';
+            }
+            
+            // Capitalizza la prima lettera dopo punteggiatura forte
+            if (i > 0 && /[.!?]/.test(punctuation[0])) {
+                reconstructed += sentence.charAt(0).toUpperCase() + sentence.slice(1);
+            } else {
+                reconstructed += sentence;
+            }
+            
+            reconstructed += punctuation;
         }
     }
+
+    // 4. Gestione speciale per dialoghi e virgolette
+    reconstructed = reconstructed.replace(/"\s+/g, '"');
+    reconstructed = reconstructed.replace(/\s+"/g, '"');
     
-    // Aggiungi l'ultimo paragrafo se presente
-    if (currentParagraph) {
-        reconstructedText += currentParagraph.trim();
-    }
-    
-    return reconstructedText.trim();
+    return reconstructed.trim();
 }
 
-// Riconosci capitoli e struttura
+
+
+
+
+// Funzione migliorata per il riconoscimento dei capitoli
 function detectChaptersAndStructure(pages) {
     let chapters = [];
-    let currentChapter = {title: 'Inizio', startPage: 0, content: []};
-    let toc = [];
+    let currentChapter = { 
+        title: 'Inizio', 
+        startPage: 0, 
+        content: [],
+        rawText: '' 
+    };
     
-    // Pattern migliorati per titoli di capitolo
+    // Pattern per titoli di capitolo
     const chapterPatterns = [
-        /^\s*[A-Z][A-Za-z ,'-]+\s*$/, // Testo centrato con solo lettere
-        /^\s*[IVXLCDM]+\.?\s*$/, // Numeri romani
-        /^\s*[0-9]+\.?\s*$/, // Numeri arabi
-        /^\s*[A-Za-z ,'-]+\s*$/, // Testo centrato
-        /^[A-Z][A-Za-z ,'-]+$/ // Testo in maiuscolo
+        /^\s*[IVXLCDM]+(?:\.\s*|\s+)/i,        // Numeri romani
+        /^\s*Capitolo\s+\w+/i,                 // "Capitolo X"
+        /^\s*[0-9]+(?:\.\s*|\s+)/,             // Numeri arabi
+        /^\s*[A-Z][A-Za-z ,'-]+(?:\s+|$)/,     // Testo centrato
+        /^\s*[A-Z][A-ZÀÈÉÌÒÙ][A-ZÀÈÉÌÒÙ\s]+$/  // Tutto maiuscolo
     ];
-    
+
     for (let i = 0; i < pages.length; i++) {
         const page = pages[i];
-        const lines = page.split('\n').filter(line => line.trim());
+        const lines = page.split('\n').filter(l => l.trim());
         
-        // Verifica se è una pagina di capitolo (pagina con poco testo centrato)
-        let isChapterPage = false;
-        if (lines.length <= 3) {
-            const firstLine = lines[0] || '';
-            const isCenteredText = chapterPatterns.some(pattern => pattern.test(firstLine));
-            const isFollowedByEmptyPage = (i < pages.length - 1) && pages[i+1].trim() === '';
-            
-            if (isCenteredText && isFollowedByEmptyPage) {
-                isChapterPage = true;
-            }
-        }
+        // Cerca titoli di capitolo
+        const isChapterStart = lines.length <= 3 && 
+            chapterPatterns.some(p => p.test(lines[0] || ''));
         
-        // Verifica se è un titolo di capitolo in alto alla pagina
-        if (!isChapterPage && lines.length > 0) {
-            const firstLine = lines[0];
-            const isTitleLike = chapterPatterns.some(pattern => pattern.test(firstLine));
-            const hasLargeTopMargin = page.startsWith('\n\n\n') || page.startsWith('\r\n\r\n\r\n');
-            
-            if (isTitleLike && (hasLargeTopMargin || firstLine === firstLine.toUpperCase())) {
-                isChapterPage = true;
-            }
-        }
-        
-        if (isChapterPage) {
-            // Salva il capitolo corrente
-            if (currentChapter.content.length > 0 || chapters.length === 0) {
-                chapters.push({...currentChapter, endPage: i-1});
-                toc.push(currentChapter.title);
+        // Crea nuovo capitolo se trovato
+        if (isChapterStart) {
+            // Salva capitolo corrente
+            if (currentChapter.content.length > 0) {
+                currentChapter.rawText = reconstructTextFlow(
+                    currentChapter.content.join('\n')
+                );
+                chapters.push({...currentChapter});
             }
             
-            // Inizia un nuovo capitolo
-            const title = lines[0] || `Capitolo ${chapters.length + 1}`;
+            // Nuovo capitolo (salta pagina vuota successiva se presente)
             currentChapter = {
-                title: title,
+                title: lines[0].trim(),
                 startPage: i,
-                content: []
+                content: [],
+                rawText: ''
             };
             
-            // Salta la pagina vuota successiva se presente
             if (i < pages.length - 1 && pages[i+1].trim() === '') {
-                i++;
+                i++; // Salta pagina vuota
             }
+            continue;
         }
         
+        // Aggiungi contenuto al capitolo corrente
         currentChapter.content.push(page);
     }
     
     // Aggiungi l'ultimo capitolo
     if (currentChapter.content.length > 0) {
-        chapters.push({...currentChapter, endPage: pages.length-1});
-        toc.push(currentChapter.title);
+        currentChapter.rawText = reconstructTextFlow(
+            currentChapter.content.join('\n')
+        );
+        chapters.push(currentChapter);
     }
     
-    return {pages, chapters, toc};
+    return chapters;
 }
 
 // Crea file EPUB
@@ -633,6 +636,7 @@ async function createEPUB(content, title) {
     
     // Struttura base EPUB
     zip.file('mimetype', 'application/epub+zip');
+
     
     const META_INF = zip.folder('META-INF');
     META_INF.file('container.xml', `<?xml version="1.0"?>
@@ -643,7 +647,15 @@ async function createEPUB(content, title) {
 </container>`);
     
     const OEBPS = zip.folder('OEBPS');
+        const processed = processText(pagesText);
     
+    // Crea EPUB con i capitoli processati
+    const epubContent = processed.map(chapter => `
+        <section epub:type="chapter">
+            <h1>${escapeXml(chapter.title)}</h1>
+            ${chapter.epubContent}
+        </section>
+    `).join('\n');
     // Crea file XHTML per ogni capitolo o pagina
     let spineItems = [];
     let manifestItems = [];
