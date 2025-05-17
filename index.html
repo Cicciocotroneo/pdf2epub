@@ -363,6 +363,14 @@
         .spinner-hidden {
             display: none;
         }
+
+        .content-type-selector {
+            margin-bottom: 15px;
+        }
+
+        .section-type {
+            margin: 5px 0;
+        }
     </style>
 </head>
 <body>
@@ -422,6 +430,22 @@
                             <input type="checkbox" id="recognizeMetadata" checked />
                             <label for="recognizeMetadata">Riconosci metadati (titolo, autore)</label>
                         </div>
+                        <div class="option-item">
+                            <input type="checkbox" id="fixHyphenation" checked />
+                            <label for="fixHyphenation">Ripara sillabazione</label>
+                        </div>
+                        <div class="option-item">
+                            <input type="checkbox" id="preserveLineBreaks" checked />
+                            <label for="preserveLineBreaks">Preserva interruzioni di riga</label>
+                        </div>
+                        <div class="option-item">
+                            <input type="checkbox" id="detectSpecialSections" checked />
+                            <label for="detectSpecialSections">Rileva sezioni speciali</label>
+                        </div>
+                        <div class="option-item">
+                            <input type="checkbox" id="removePageBreaks" checked />
+                            <label for="removePageBreaks">Rimuovi interruzioni di pagina</label>
+                        </div>
                     </div>
                     <button id="extractTextBtn" disabled>
                         <span class="loading-spinner spinner-hidden" id="extractSpinner"></span>
@@ -451,11 +475,11 @@
                     </div>
                     
                     <div class="chapter-container">
-                        <h3>Capitoli rilevati:</h3>
+                        <h3>Sezioni rilevate:</h3>
                         <div class="chapter-list" id="chaptersList">
                             <!-- I capitoli verranno aggiunti qui dinamicamente -->
                         </div>
-                        <button id="addChapterBtn" class="small-button">Aggiungi capitolo</button>
+                        <button id="addChapterBtn" class="small-button">Aggiungi sezione</button>
                     </div>
                     
                     <button id="proceedToEditBtn" disabled>Procedi alla modifica del testo</button>
@@ -470,10 +494,37 @@
                     </div>
                     <div class="split-editor">
                         <div>
-                            <label for="chapterSelect">Seleziona capitolo:</label>
+                            <label for="chapterSelect">Seleziona sezione:</label>
                             <select id="chapterSelect">
                                 <!-- Le opzioni verranno aggiunte qui dinamicamente -->
                             </select>
+                            <div class="content-type-selector" id="contentTypeSelector">
+                                <label>Tipo di contenuto:</label>
+                                <div class="section-type">
+                                    <input type="radio" id="typeNormal" name="contentType" value="normal" checked>
+                                    <label for="typeNormal">Testo normale</label>
+                                </div>
+                                <div class="section-type">
+                                    <input type="radio" id="typeChapter" name="contentType" value="chapter">
+                                    <label for="typeChapter">Capitolo</label>
+                                </div>
+                                <div class="section-type">
+                                    <input type="radio" id="typeTitle" name="contentType" value="title">
+                                    <label for="typeTitle">Titolo</label>
+                                </div>
+                                <div class="section-type">
+                                    <input type="radio" id="typeColophon" name="contentType" value="colophon">
+                                    <label for="typeColophon">Colophon</label>
+                                </div>
+                                <div class="section-type">
+                                    <input type="radio" id="typeDedication" name="contentType" value="dedication">
+                                    <label for="typeDedication">Dedica</label>
+                                </div>
+                                <div class="section-type">
+                                    <input type="radio" id="typeQuote" name="contentType" value="quote">
+                                    <label for="typeQuote">Citazione</label>
+                                </div>
+                            </div>
                         </div>
                         <textarea id="textEditor" class="text-editor" placeholder="Il testo estratto apparirà qui..."></textarea>
                     </div>
@@ -507,19 +558,30 @@
     <div class="modal" id="chapterModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Modifica capitolo</h3>
+                <h3>Modifica sezione</h3>
                 <button class="close-button" id="closeChapterModal">&times;</button>
             </div>
             <div>
                 <div style="margin-bottom: 15px;">
-                    <label for="chapterTitle">Titolo del capitolo:</label>
-                    <input type="text" id="chapterTitle" style="width: 100%; margin-top: 5px; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;" placeholder="Titolo del capitolo" />
+                    <label for="chapterTitle">Titolo della sezione:</label>
+                    <input type="text" id="chapterTitle" style="width: 100%; margin-top: 5px; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;" placeholder="Titolo della sezione" />
                 </div>
                 <div style="margin-bottom: 15px;">
                     <label for="chapterStartPosition">Posizione di inizio (carattere):</label>
                     <input type="number" id="chapterStartPosition" style="width: 100%; margin-top: 5px; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;" min="0" />
                 </div>
-                <button id="saveChapterBtn" style="width: 100%;">Salva capitolo</button>
+                <div style="margin-bottom: 15px;">
+                    <label for="sectionType">Tipo di sezione:</label>
+                    <select id="sectionType" style="width: 100%; margin-top: 5px; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
+                        <option value="normal">Testo normale</option>
+                        <option value="chapter">Capitolo</option>
+                        <option value="title">Titolo</option>
+                        <option value="colophon">Colophon</option>
+                        <option value="dedication">Dedica</option>
+                        <option value="quote">Citazione</option>
+                    </select>
+                </div>
+                <button id="saveChapterBtn" style="width: 100%;">Salva sezione</button>
             </div>
         </div>
     </div>
@@ -560,6 +622,10 @@
         const removePageNumbers = document.getElementById('removePageNumbers');
         const removeHeadersFooters = document.getElementById('removeHeadersFooters');
         const detectChapters = document.getElementById('detectChapters');
+        const fixHyphenation = document.getElementById('fixHyphenation');
+        const preserveLineBreaks = document.getElementById('preserveLineBreaks');
+        const detectSpecialSections = document.getElementById('detectSpecialSections');
+        const removePageBreaks = document.getElementById('removePageBreaks');
         const bookTitle = document.getElementById('bookTitle');
         const bookAuthor = document.getElementById('bookAuthor');
         const bookLanguage = document.getElementById('bookLanguage');
@@ -567,9 +633,11 @@
         const chaptersList = document.getElementById('chaptersList');
         const addChapterBtn = document.getElementById('addChapterBtn');
         const chapterSelect = document.getElementById('chapterSelect');
+        const contentTypeSelector = document.getElementById('contentTypeSelector');
         const chapterModal = document.getElementById('chapterModal');
         const chapterTitle = document.getElementById('chapterTitle');
         const chapterStartPosition = document.getElementById('chapterStartPosition');
+        const sectionType = document.getElementById('sectionType');
         const saveChapterBtn = document.getElementById('saveChapterBtn');
         const closeChapterModal = document.getElementById('closeChapterModal');
         const notification = document.getElementById('notification');
@@ -645,6 +713,13 @@
             saveChapterBtn.addEventListener('click', saveChapterChanges);
             closeChapterModal.addEventListener('click', closeModal);
             chapterSelect.addEventListener('change', loadChapterContent);
+            
+            // Listener per il cambio di tipo di contenuto
+            document.querySelectorAll('input[name="contentType"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    updateContentType(this.value);
+                });
+            });
             
             // Inizializza come PWA
             initPwa();
@@ -739,96 +814,204 @@
                 // Carica il PDF
                 const arrayBuffer = await readFileAsArrayBuffer(currentPdfFile);
                 pdfDocument = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-                
                 const numPages = pdfDocument.numPages;
-                let fullText = '';
+            let fullText = '';
+            let pageContents = []; // Memorizza il contenuto di ogni pagina separatamente
+            
+            // Estrai il testo da ogni pagina
+            for (let i = 1; i <= numPages; i++) {
+                const page = await pdfDocument.getPage(i);
+                const textContent = await page.getTextContent();
                 
-                // Estrai il testo da ogni pagina
-                for (let i = 1; i <= numPages; i++) {
-                    const page = await pdfDocument.getPage(i);
-                    const textContent = await page.getTextContent();
-                    
-                    let pageText = '';
-                    let lastY;
-                    
-                    // Combina gli elementi di testo con gestione delle linee
-                    for (const item of textContent.items) {
-                        if (lastY !== item.transform[5] && pageText) {
-                            pageText += '\n';
+                let pageText = '';
+                let lastY, lastItem;
+                let currentLine = '';
+                let lines = [];
+                
+                // Combina gli elementi di testo con un'elaborazione migliorata delle linee
+                for (const item of textContent.items) {
+                    // Se è una nuova riga (coordinata Y diversa)
+                    if (lastY !== undefined && Math.abs(lastY - item.transform[5]) > 1) {
+                        if (currentLine.trim()) {
+                            lines.push(currentLine.trim());
                         }
-                        pageText += item.str;
-                        lastY = item.transform[5];
+                        currentLine = item.str;
+                    } else if (lastItem && preserveLineBreaks.checked) {
+                        // Calcola lo spazio tra gli elementi per determinare se è uno spazio reale
+                        const lastTransform = lastItem.transform;
+                        const lastWidth = lastItem.width;
+                        const lastEndX = lastTransform[4] + lastWidth;
+                        const currentStartX = item.transform[4];
+                        const spacingThreshold = 3; // Soglia per determinare uno spazio significativo
+                        
+                        if (currentStartX - lastEndX > spacingThreshold) {
+                            currentLine += ' ' + item.str;
+                        } else {
+                            currentLine += item.str;
+                        }
+                    } else {
+                        currentLine += item.str;
                     }
                     
-                    // Pulisci il testo della pagina
-                    pageText = cleanPageText(pageText, i, numPages);
-                    
-                    fullText += pageText + '\n\n';
-                    
-                    // Aggiorna la barra di progresso
-                    const progress = (i / numPages) * 100;
-                    progressBar.style.width = `${progress}%`;
+                    lastY = item.transform[5];
+                    lastItem = item;
                 }
                 
-                // Pulisci il testo completo
-                extractedText = cleanExtractedText(fullText);
+                // Aggiungi l'ultima riga
+                if (currentLine.trim()) {
+                    lines.push(currentLine.trim());
+                }
                 
-                // Analizza il testo per i metadati e i capitoli
-                analyzeText(extractedText);
+                // Unisci le linee in testo
+                pageText = lines.join('\n');
                 
-                // Mostra il passo 3
-                goToStep(2);
+                // Applica la pulizia del testo
+                pageText = cleanPageText(pageText, i, numPages);
                 
-                // Abilita il pulsante per procedere
-                proceedToEditBtn.disabled = false;
+                // Memorizza il testo della pagina
+                pageContents.push({
+                    pageNum: i,
+                    content: pageText
+                });
                 
-            } catch (error) {
-                console.error('Errore nell\'estrazione del testo:', error);
-                showNotification('Si è verificato un errore durante l\'estrazione del testo. ' + error.message, true);
-            } finally {
-                // Nascondi il loader
-                extractSpinner.classList.remove('spinner-visible');
-                extractSpinner.classList.add('spinner-hidden');
-                extractTextBtn.disabled = false;
+                // Aggiorna la barra di progresso
+                const progress = (i / numPages) * 100;
+                progressBar.style.width = `${progress}%`;
+            }
+            
+            // Elabora il testo nel suo insieme
+            fullText = processExtractedText(pageContents);
+            
+            // Pulisci il testo completo
+            extractedText = fullText;
+            
+            // Analizza il testo per i metadati e i capitoli
+            analyzeText(extractedText);
+            
+            // Mostra il passo 3
+            goToStep(2);
+            
+            // Abilita il pulsante per procedere
+            proceedToEditBtn.disabled = false;
+            
+        } catch (error) {
+            console.error('Errore nell\'estrazione del testo:', error);
+            showNotification('Si è verificato un errore durante l\'estrazione del testo. ' + error.message, true);
+        } finally {
+            // Nascondi il loader
+            extractSpinner.classList.remove('spinner-visible');
+            extractSpinner.classList.add('spinner-hidden');
+            extractTextBtn.disabled = false;
+        }
+    }
+
+    // Elabora il testo estratto applicando tutte le opzioni di pulizia
+    function processExtractedText(pageContents) {
+        let processedText = '';
+        let previousPageEndedWithHyphen = false;
+        let previousPageLastLine = '';
+        
+        for (let i = 0; i < pageContents.length; i++) {
+            let pageText = pageContents[i].content;
+            let pageLines = pageText.split('\n');
+            
+            // Gestisci l'hyphenation fra le pagine
+            if (previousPageEndedWithHyphen && fixHyphenation.checked) {
+                if (pageLines.length > 0 && pageLines[0].trim()) {
+                    // Rimuovi il trattino e unisci con la prima riga della pagina corrente
+                    previousPageLastLine = previousPageLastLine.substring(0, previousPageLastLine.length - 1);
+                    pageLines[0] = previousPageLastLine + pageLines[0];
+                    
+                    // Aggiorna il testo della pagina
+                    pageText = pageLines.join('\n');
+                    
+                    // Se stiamo rimuovendo i page break, dobbiamo aggiornare anche il testo elaborato
+                    if (removePageBreaks.checked) {
+                        // Rimuovi l'ultima riga del testo elaborato finora
+                        processedText = processedText.substring(0, processedText.lastIndexOf('\n'));
+                    }
+                }
+            }
+            
+            // Controlla se l'ultima riga della pagina termina con un trattino
+            if (pageLines.length > 0) {
+                previousPageLastLine = pageLines[pageLines.length - 1];
+                previousPageEndedWithHyphen = previousPageLastLine.endsWith('-');
+            } else {
+                previousPageEndedWithHyphen = false;
+                previousPageLastLine = '';
+            }
+            
+            // Aggiungi il testo della pagina al testo elaborato
+            if (removePageBreaks.checked && i > 0) {
+                // Aggiungi il testo senza un'interruzione di pagina esplicita
+                processedText += (processedText.endsWith('\n') ? '' : '\n') + pageText;
+            } else {
+                // Aggiungi un'interruzione di pagina
+                processedText += (i > 0 ? '\n\n' : '') + pageText;
             }
         }
+        
+        // Riparazione della sillabazione all'interno delle pagine
+        if (fixHyphenation.checked) {
+            processedText = fixInternalHyphenation(processedText);
+        }
+        
+        // Pulizia finale
+        processedText = cleanExtractedText(processedText);
+        
+        return processedText;
+    }
 
-        // Pulizia del testo della pagina
-        function cleanPageText(text, pageNum, totalPages) {
-            if (!removePageNumbers.checked && !removeHeadersFooters.checked) {
-                return text;
+    // Riparazione della sillabazione all'interno di una pagina
+    function fixInternalHyphenation(text) {
+        // Pattern: una riga termina con un trattino e la successiva inizia con una lettera minuscola
+        const hyphenPattern = /(\w+)-\n(\w+)/g;
+        
+        // Sostituisce il pattern unendo le parole sillabate
+        return text.replace(hyphenPattern, (match, part1, part2) => {
+            // Verifica se la seconda parte inizia con una lettera minuscola (probabile continuazione)
+            if (/^[a-zàèìòùáéíóúäëïöüâêîôû]/.test(part2)) {
+                return part1 + part2;
             }
-            
-            // Dividi in linee
-            const lines = text.split('\n');
-            
-            // Filtra le linee
-            const filteredLines = lines.filter(line => {
-                // Rimuovi numeri di pagina
-                if (removePageNumbers.checked) {
-                    // Numeri di pagina isolati
-                    if (/^\s*\d+\s*$/.test(line)) {
-                        return false;
-                    }
-                    
-                    // Numeri di pagina con formati comuni (Pagina X, Page X, X/Y, ecc.)
-                    if (/^\s*(Page|Pagina|p\.)\s*\d+\s*$/.test(line) || 
-                        new RegExp(`^\\s*${pageNum}\\s*/\\s*${totalPages}\\s*$`).test(line)) {
-                        return false;
-                    }
+            // Altrimenti mantieni il trattino (potrebbe essere un trattino significativo)
+            return part1 + '-\n' + part2;
+        });
+    }
+
+    // Pulizia del testo della pagina
+    function cleanPageText(text, pageNum, totalPages) {
+        if (!removePageNumbers.checked && !removeHeadersFooters.checked) {
+            return text;
+        }
+        
+        // Dividi in linee
+        const lines = text.split('\n');
+        
+        // Filtra le linee
+        const filteredLines = lines.filter(line => {
+            // Rimuovi numeri di pagina
+            if (removePageNumbers.checked) {
+                // Numeri di pagina isolati
+                if (/^\s*\d+\s*$/.test(line)) {
+                    return false;
                 }
                 
-                // Rimuovi intestazioni e piè di pagina
-                if (removeHeadersFooters.checked) {
-                    // Considera le prime e ultime righe come potenziali intestazioni/piè di pagina
-                    if (lines.length > 3) {
-                        // Se è la prima o l'ultima riga della pagina
-                        if (lines.indexOf(line) === 0 || lines.indexOf(line) === lines.length - 1) {
-                            // Verifica se la riga contiene titoli comuni di capitoli o intestazioni
-                            if (/^(capitolo|chapter|parte|part|sezione|section)\s+(\d+|[IVXLCDM]+)/i.test(line)) {
-                                return false;
-                            }
-                            
+                // Numeri di pagina con formati comuni (Pagina X, Page X, X/Y, ecc.)
+                if (/^\s*(Page|Pagina|p\.)\s*\d+\s*$/.test(line) || 
+                    new RegExp(`^\\s*${pageNum}\\s*/\\s*${totalPages}\\s*$`).test(line)) {
+                    return false;
+                }
+            }
+            
+            // Rimuovi intestazioni e piè di pagina
+            if (removeHeadersFooters.checked) {
+                // Considera le prime e ultime righe come potenziali intestazioni/piè di pagina
+                if (lines.length > 3) {
+                    // Se è la prima o l'ultima riga della pagina
+                    if (lines.indexOf(line) === 0 || lines.indexOf(line) === lines.length - 1) {
+                        // Verifica se la riga contiene titoli comuni di capitoli o intestazioni
+                        if (!/^(capitolo|chapter|parte|part|sezione|section)\s+(\d+|[IVXLCDM]+)/i.test(line)) {
                             // Verifica se la riga contiene solo il titolo del libro
                             if (bookTitle.value && line.trim() === bookTitle.value.trim()) {
                                 return false;
@@ -838,710 +1021,980 @@
                             if (bookAuthor.value && line.trim() === bookAuthor.value.trim()) {
                                 return false;
                             }
+                            
+                            // Verifica se la riga è molto breve (probabile intestazione/piè di pagina)
+                            if (line.trim().length < 30) {
+                                return false;
+                            }
                         }
                     }
                 }
+            }
+            
+            return true;
+        });
+        
+        return filteredLines.join('\n');
+    }
+
+    // Pulizia del testo estratto completo
+    function cleanExtractedText(text) {
+        // Rimuovi spazi bianchi multipli
+        let cleanText = text.replace(/ {2,}/g, ' ');
+        
+        // Rimuovi interruzioni di riga ripetute (più di 2)
+        cleanText = cleanText.replace(/\n{3,}/g, '\n\n');
+        
+        // Rimuovi spazi all'inizio e alla fine
+        cleanText = cleanText.trim();
+        
+        return cleanText;
+    }
+
+    // Analisi del testo per rilevare metadati e capitoli
+    function analyzeText(text) {
+        // Rileva il titolo e l'autore dal testo
+        if (detectSpecialSections.checked) {
+            detectFrontMatter(text);
+        }
+        
+        // Rileva capitoli se richiesto
+        if (detectChapters.checked) {
+            detectChaptersInText(text);
+        } else {
+            // Altrimenti crea un capitolo unico con tutto il testo
+            chapters = [{
+                title: 'Intero documento',
+                startPosition: 0,
+                content: text,
+                type: 'normal'
+            }];
+        }
+        
+        // Aggiorna l'UI con i capitoli
+        updateChaptersList();
+    }
+
+    // Rileva elementi del frontmatter (titolo, autore, colophon, ecc.)
+    function detectFrontMatter(text) {
+        // Rileva titolo se non è già impostato
+        if (!bookTitle.value && text.length > 0) {
+            const firstLines = text.split('\n', 10);
+            
+            // Cerca una linea centrata o più corta che potrebbe essere un titolo
+            for (let i = 0; i < firstLines.length && i < 3; i++) {
+                const line = firstLines[i].trim();
+                if (line && line.length < 80 && line.length > 10) {
+                    bookTitle.value = line;
+                    break;
+                }
+            }
+        }
+        
+        // Cerca di estrarre l'autore (pattern comune: "di", "by", ecc. seguito da un nome)
+        const authorRegex = /(di|by|written by|autor[e]:)\s+([A-Z][a-zA-Zàèìòùé'\s,.]+)/i;
+        const authorMatch = text.match(authorRegex);
+        if (authorMatch && authorMatch[2]) {
+            bookAuthor.value = authorMatch[2].trim();
+        }
+        
+        // Cerca un possibile colophon (informazioni editoriali) all'inizio o alla fine
+        const colophonRegex = /(ISBN|edizione|editore|copyright|pubblicato da|printed by|©).*?([0-9]{4})/i;
+        const colophonMatch = text.match(colophonRegex);
+        if (colophonMatch) {
+            // Memorizza la posizione del colophon per crearlo come sezione separata
+            const colophonPos = text.indexOf(colophonMatch[0]);
+            if (colophonPos > -1) {
+                let colophonEnd = text.indexOf('\n\n', colophonPos);
+                if (colophonEnd === -1) colophonEnd = text.indexOf('\n', colophonPos);
+                if (colophonEnd === -1) colophonEnd = colophonPos + colophonMatch[0].length;
                 
-                return true;
-            });
-            
-            return filteredLines.join('\n');
-        }
-
-        // Pulizia del testo estratto completo
-        function cleanExtractedText(text) {
-            // Rimuovi spazi bianchi multipli
-            let cleanText = text.replace(/\s+/g, ' ');
-            
-            // Rimuovi interruzioni di pagina ripetute
-            cleanText = cleanText.replace(/\n\s*\n\s*\n/g, '\n\n');
-            
-            // Rimuovi spazi all'inizio e alla fine
-            cleanText = cleanText.trim();
-            
-            return cleanText;
-        }
-
-        // Analisi del testo per rilevare metadati e capitoli
-        function analyzeText(text) {
-            // Estrai il titolo se non è già impostato
-            if (!bookTitle.value && text.length > 0) {
-                const possibleTitle = text.split('\n')[0].trim();
-                if (possibleTitle.length < 100) {  // Un titolo ragionevole non dovrebbe essere troppo lungo
-                    bookTitle.value = possibleTitle;
-                }
-            }
-            
-            // Cerca di estrarre l'autore (pattern comune: "di", "by", ecc. seguito da un nome)
-            const authorRegex = /(?:di|by|written by|autor[e]:)\s+([A-Z][a-zA-Zàèìòùé'\s,.]+)/i;
-            const authorMatch = text.match(authorRegex);
-            if (authorMatch && authorMatch[1]) {
-                bookAuthor.value = authorMatch[1].trim();
-            }
-            
-            // Rileva capitoli se richiesto
-            if (detectChapters.checked) {
-                detectChaptersInText(text);
-            } else {
-                // Altrimenti crea un capitolo unico con tutto il testo
-                chapters = [{
-                    title: 'Intero documento',
-                    startPosition: 0,
-                    content: text
-                }];
-            }
-            
-            // Aggiorna l'UI con i capitoli
-            updateChaptersList();
-        }
-
-        // Rilevamento dei capitoli nel testo
-        function detectChaptersInText(text) {
-            chapters = [];
-            
-            // Pattern per rilevare i titoli dei capitoli
-            const chapterPatterns = [
-                /\n(Capitolo|Chapter)\s+(\d+|[IVXLCDM]+)[\s:.-]*(.*)?\n/gi,
-                /\n(Parte|Part)\s+(\d+|[IVXLCDM]+)[\s:.-]*(.*)?\n/gi,
-                /\n(\d+|[IVXLCDM]+)[\s:.-]*(.*)?\n/gi,
-                /\n(.{1,60})\n(?=\S)/g  // Linee corte seguite da testo (possibili titoli)
-            ];
-            
-            // Cerca match per ogni pattern
-            let matches = [];
-            
-            for (const pattern of chapterPatterns) {
-                let match;
-                while ((match = pattern.exec(text)) !== null) {
-                    // Estrai il titolo del capitolo
-                    let chapterTitle;
-                    if (match[3]) {
-                        chapterTitle = `${match[1]} ${match[2]}: ${match[3].trim()}`;
-                    } else if (match[2]) {
-                        chapterTitle = `${match[1]} ${match[2]}`;
-                    } else {
-                        chapterTitle = match[1].trim();
-                    }
-                    
-                    // Memorizza la posizione dell'inizio del capitolo
-                    matches.push({
-                        title: chapterTitle,
-                        startPosition: match.index + 1  // +1 per saltare il carattere newline
-                    });
-                }
-            }
-            
-            // Ordina i match per posizione
-            matches.sort((a, b) => a.startPosition - b.startPosition);
-            
-            // Rimuovi i duplicati (capitoli rilevati da pattern diversi)
-            for (let i = matches.length - 1; i > 0; i--) {
-                if (Math.abs(matches[i].startPosition - matches[i-1].startPosition) < 100) {
-                    matches.splice(i, 1);
-                }
-            }
-            
-            // Crea i capitoli
-            if (matches.length > 0) {
-                for (let i = 0; i < matches.length; i++) {
-                    const startPos = matches[i].startPosition;
-                    const endPos = (i < matches.length - 1) ? matches[i+1].startPosition : text.length;
-                    
-                    chapters.push({
-                        title: matches[i].title,
-                        startPosition: startPos,
-                        content: text.substring(startPos, endPos).trim()
-                    });
-                }
-            } else {
-                // Se non sono stati rilevati capitoli, crea un unico capitolo
-                chapters = [{
-                    title: 'Intero documento',
-                    startPosition: 0,
-                    content: text
-                }];
-            }
-        }
-
-        // Aggiorna la lista dei capitoli nell'UI
-        function updateChaptersList() {
-            // Svuota la lista
-            chaptersList.innerHTML = '';
-            
-            // Aggiungi ciascun capitolo
-            chapters.forEach((chapter, index) => {
-                const chapterItem = document.createElement('div');
-                chapterItem.className = 'chapter-item';
-                chapterItem.innerHTML = `
-                    <div>${index + 1}. ${chapter.title}</div>
-                    <div class="chapter-actions">
-                        <button class="small-button" data-action="edit" data-index="${index}">Modifica</button>
-                        <button class="small-button" data-action="delete" data-index="${index}">Elimina</button>
-                    </div>
-                `;
-                chaptersList.appendChild(chapterItem);
-                
-                // Aggiungi event listeners
-                const editBtn = chapterItem.querySelector('[data-action="edit"]');
-                const deleteBtn = chapterItem.querySelector('[data-action="delete"]');
-                
-                editBtn.addEventListener('click', () => openEditChapterModal(index));
-                deleteBtn.addEventListener('click', () => deleteChapter(index));
-            });
-            
-            // Aggiorna anche il selettore dei capitoli
-            updateChapterSelect();
-        }
-
-        // Aggiorna il selettore dei capitoli
-        function updateChapterSelect() {
-            chapterSelect.innerHTML = '';
-            
-            chapters.forEach((chapter, index) => {
-                const option = document.createElement('option');
-                option.value = index;
-                option.textContent = `${index + 1}. ${chapter.title}`;
-                chapterSelect.appendChild(option);
-            });
-            
-            // Carica il contenuto del primo capitolo se disponibile
-            if (chapters.length > 0) {
-                loadChapterContent();
-            }
-        }
-
-        // Carica il contenuto del capitolo selezionato nell'editor
-        function loadChapterContent() {
-            const selectedIndex = parseInt(chapterSelect.value);
-            if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= chapters.length) return;
-            
-            textEditor.value = chapters[selectedIndex].content;
-            saveTextBtn.disabled = false;
-        }
-
-        // Aggiungi un nuovo capitolo
-        function addNewChapter() {
-            currentEditingChapterIndex = -1;
-            chapterTitle.value = '';
-            chapterStartPosition.value = extractedText.length;
-            openModal();
-        }
-
-        // Apri il modal per modificare un capitolo
-        function openEditChapterModal(index) {
-            currentEditingChapterIndex = index;
-            const chapter = chapters[index];
-            
-            chapterTitle.value = chapter.title;
-            chapterStartPosition.value = chapter.startPosition;
-            
-            openModal();
-        }
-
-        // Salva le modifiche al capitolo
-        function saveChapterChanges() {
-            const title = chapterTitle.value.trim();
-            const startPos = parseInt(chapterStartPosition.value);
-            
-            if (!title) {
-                showNotification('Inserisci un titolo per il capitolo.', true);
-                return;
-            }
-            
-            if (isNaN(startPos) || startPos < 0 || startPos >= extractedText.length) {
-                showNotification('Posizione di inizio non valida.', true);
-                return;
-            }
-            
-            if (currentEditingChapterIndex === -1) {
-                // Nuovo capitolo
-                const newChapter = {
-                    title: title,
-                    startPosition: startPos,
-                    content: extractedText.substring(startPos).trim()
+                // Memorizza il colophon per aggiungerlo come sezione
+                const colophonSection = {
+                    title: 'Colophon',
+                    startPosition: colophonPos,
+                    content: text.substring(colophonPos, colophonEnd),
+                    type: 'colophon'
                 };
                 
-                chapters.push(newChapter);
-                
-                // Aggiorna i capitoli esistenti
-                updateChapterBoundaries();
-            } else {
-                // Modifica di un capitolo esistente
-                chapters[currentEditingChapterIndex].title = title;
-                chapters[currentEditingChapterIndex].startPosition = startPos;
-                
-                // Aggiorna il contenuto in base alla nuova posizione
-                updateChapterBoundaries();
-            }
-            
-            // Aggiorna l'UI
-            updateChaptersList();
-            
-            // Chiudi il modal
-            closeModal();
-        }
-
-        // Aggiorna i confini dei capitoli dopo modifiche
-        function updateChapterBoundaries() {
-            // Ordina i capitoli per posizione
-            chapters.sort((a, b) => a.startPosition - b.startPosition);
-            
-            // Aggiorna il contenuto di ciascun capitolo
-            for (let i = 0; i < chapters.length; i++) {
-                const startPos = chapters[i].startPosition;
-                const endPos = (i < chapters.length - 1) ? chapters[i+1].startPosition : extractedText.length;
-                
-                chapters[i].content = extractedText.substring(startPos, endPos).trim();
+                // Lo aggiungeremo alla lista dei capitoli più tardi
+                chapters.push(colophonSection);
             }
         }
+        
+        // Cerca dediche (pattern comune: "A", "Dedicato a", ecc.)
+        const dedicationRegex = /^(A|To|Dedicato a|Dedicated to)\s+[A-Z][a-zA-Zàèìòùé'\s,.]+$/m;
+        const dedicationMatch = text.match(dedicationRegex);
+        if (dedicationMatch) {
+            const dedicationPos = text.indexOf(dedicationMatch[0]);
+            if (dedicationPos > -1) {
+                let dedicationEnd = text.indexOf('\n\n', dedicationPos);
+                if (dedicationEnd === -1) dedicationEnd = text.indexOf('\n', dedicationPos);
+                if (dedicationEnd === -1) dedicationEnd = dedicationPos + dedicationMatch[0].length;
+                
+                const dedicationSection = {
+                    title: 'Dedica',
+                    startPosition: dedicationPos,
+                    content: text.substring(dedicationPos, dedicationEnd),
+                    type: 'dedication'
+                };
+                
+                chapters.push(dedicationSection);
+            }
+        }
+        
+        // Cerca citazioni iniziali (pattern: testo breve indentato o in corsivo all'inizio)
+        const quoteRegex = /^[\s>"].*["—][\s\n]+—\s*[A-Z][a-zA-Zàèìòùé'\s,.]+$/m;
+        const quoteMatch = text.match(quoteRegex);
+        if (quoteMatch) {
+            const quotePos = text.indexOf(quoteMatch[0]);
+            if (quotePos > -1 && quotePos < text.length / 4) {  // Solo nel primo quarto del testo
+                let quoteEnd = text.indexOf('\n\n', quotePos);
+                if (quoteEnd === -1) quoteEnd = text.indexOf('\n', quotePos);
+                if (quoteEnd === -1) quoteEnd = quotePos + quoteMatch[0].length;
+                
+                const quoteSection = {
+                    title: 'Citazione',
+                    startPosition: quotePos,
+                    content: text.substring(quotePos, quoteEnd),
+                    type: 'quote'
+                };
+                
+                chapters.push(quoteSection);
+            }
+        }
+    }
 
-        // Elimina un capitolo
-        function deleteChapter(index) {
-            if (chapters.length <= 1) {
-                showNotification('Non è possibile eliminare l\'unico capitolo presente.', true);
-                return;
+    // Rilevamento dei capitoli nel testo
+    function detectChaptersInText(text) {
+        // Inizia con un array vuoto (le sezioni speciali potrebbero essere già state aggiunte)
+        if (chapters.length === 0) {
+            chapters = [];
+        }
+        
+        // Pattern per rilevare i titoli dei capitoli
+        const chapterPatterns = [
+            // Pattern standard per capitoli numerati
+            /\n(Capitolo|Chapter)\s+(\d+|[IVXLCDM]+)[\s:.-]*(.*)?\n/gi,
+            
+            // Pattern per parti o sezioni
+            /\n(Parte|Part|Sezione|Section)\s+(\d+|[IVXLCDM]+)[\s:.-]*(.*)?\n/gi,
+            
+            // Pattern per capitoli con solo numeri o numeri romani
+            /\n(\d+|[IVXLCDM]+)[\s:.-]*(.*)?\n/gi,
+            
+            // Pattern per titoli che appaiono su una riga a sé
+            /\n([A-Z][A-ZÀÈÌÒÙa-zàèìòù',;: ]{0,50}[A-ZÀÈÌÒÙa-zàèìòù',;:])\n(?=\S)/g,
+            
+            // Pattern per titoli in maiuscolo
+            /\n([A-ZÀÈÌÒÙ][A-ZÀÈÌÒÙ ',;:.]{4,60})\n/g
+        ];
+        
+        // Cerca match per ogni pattern
+        let matches = [];
+        
+        for (const pattern of chapterPatterns) {
+            let match;
+            while ((match = pattern.exec(text)) !== null) {
+                // Estrai il titolo del capitolo
+                let chapterTitle;
+                if (match[3]) {
+                    chapterTitle = `${match[1]} ${match[2]}: ${match[3].trim()}`;
+                } else if (match[2]) {
+                    chapterTitle = `${match[1]} ${match[2]}`;
+                } else {
+                    chapterTitle = match[1].trim();
+                }
+                
+                // Memorizza la posizione dell'inizio del capitolo
+                matches.push({
+                    title: chapterTitle,
+                    startPosition: match.index + 1,  // +1 per saltare il carattere newline
+                    type: 'chapter'
+                });
+            }
+        }
+        
+        // Ordina i match per posizione
+        matches.sort((a, b) => a.startPosition - b.startPosition);
+        
+        // Rimuovi i duplicati (capitoli rilevati da pattern diversi)
+        for (let i = matches.length - 1; i > 0; i--) {
+            if (Math.abs(matches[i].startPosition - matches[i-1].startPosition) < 100) {
+                matches.splice(i, 1);
+            }
+        }
+        
+        // Crea i capitoli
+        if (matches.length > 0) {
+            for (let i = 0; i < matches.length; i++) {
+                const startPos = matches[i].startPosition;
+                const endPos = (i < matches.length - 1) ? matches[i+1].startPosition : text.length;
+                
+                chapters.push({
+                    title: matches[i].title,
+                    startPosition: startPos,
+                    content: text.substring(startPos, endPos).trim(),
+                    type: matches[i].type
+                });
+            }
+        } else if (chapters.length === 0) {
+            // Se non sono stati rilevati capitoli e non ci sono altre sezioni, crea un unico capitolo
+            chapters = [{
+                title: 'Intero documento',
+                startPosition: 0,
+                content: text,
+                type: 'normal'
+            }];
+        }
+        
+        // Ordina tutti i capitoli e le sezioni per posizione
+        chapters.sort((a, b) => a.startPosition - b.startPosition);
+    }
+
+    // Aggiorna la lista dei capitoli nell'UI
+    function updateChaptersList() {
+        // Svuota la lista
+        chaptersList.innerHTML = '';
+        
+        // Aggiungi ciascun capitolo
+        chapters.forEach((chapter, index) => {
+            const chapterItem = document.createElement('div');
+            chapterItem.className = 'chapter-item';
+            
+            // Aggiungi un'icona o un indicatore per il tipo di sezione
+            let typeIndicator = '';
+            switch(chapter.type) {
+                case 'chapter': typeIndicator = '📕 '; break;
+                case 'title': typeIndicator = '📑 '; break;
+                case 'colophon': typeIndicator = '©️ '; break;
+                case 'dedication': typeIndicator = '❤️ '; break;
+                case 'quote': typeIndicator = '💬 '; break;
+                default: typeIndicator = '📄 ';
             }
             
-            // Rimuovi il capitolo
-            chapters.splice(index, 1);
+            chapterItem.innerHTML = `
+                <div>${typeIndicator}${index + 1}. ${chapter.title}</div>
+                <div class="chapter-actions">
+                    <button class="small-button" data-action="edit" data-index="${index}">Modifica</button>
+                    <button class="small-button" data-action="delete" data-index="${index}">Elimina</button>
+                </div>
+            `;
+            chaptersList.appendChild(chapterItem);
             
-            // Aggiorna l'UI
-            updateChaptersList();
+            // Aggiungi event listeners
+            const editBtn = chapterItem.querySelector('[data-action="edit"]');
+            const deleteBtn = chapterItem.querySelector('[data-action="delete"]');
             
-            showNotification('Capitolo eliminato con successo.');
-        }
+            editBtn.addEventListener('click', () => openEditChapterModal(index));
+            deleteBtn.addEventListener('click', () => deleteChapter(index));
+        });
+        
+        // Aggiorna anche il selettore dei capitoli
+        updateChapterSelect();
+    }
 
-        // Procedi alla fase di modifica del testo
-        function goToEditStep() {
-            goToStep(3);
+    // Aggiorna il selettore dei capitoli
+    function updateChapterSelect() {
+        chapterSelect.innerHTML = '';
+        
+        chapters.forEach((chapter, index) => {
+            const option = document.createElement('option');
+            option.value = index;
+            
+            // Aggiungi un'icona o un indicatore per il tipo di sezione
+            let typeIndicator = '';
+            switch(chapter.type) {
+                case 'chapter': typeIndicator = '📕 '; break;
+                case 'title': typeIndicator = '📑 '; break;
+                case 'colophon': typeIndicator = '©️ '; break;
+                case 'dedication': typeIndicator = '❤️ '; break;
+                case 'quote': typeIndicator = '💬 '; break;
+                default: typeIndicator = '📄 ';
+            }
+            
+            option.textContent = `${typeIndicator}${index + 1}. ${chapter.title}`;
+            chapterSelect.appendChild(option);
+        });
+        
+        // Carica il contenuto del primo capitolo se disponibile
+        if (chapters.length > 0) {
             loadChapterContent();
         }
+    }
 
-        // Salva le modifiche al testo del capitolo
-        function saveTextChanges() {
-            const selectedIndex = parseInt(chapterSelect.value);
-            if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= chapters.length) return;
-            
-            // Salva il contenuto modificato
-            chapters[selectedIndex].content = textEditor.value;
-            
-            showNotification('Modifiche salvate con successo.');
+    // Carica il contenuto del capitolo selezionato nell'editor
+    function loadChapterContent() {
+        const selectedIndex = parseInt(chapterSelect.value);
+        if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= chapters.length) return;
+        
+        const chapter = chapters[selectedIndex];
+        
+        // Imposta il tipo di contenuto nei radio button
+        const contentTypeRadio = document.querySelector(`input[value="${chapter.type}"]`);
+        if (contentTypeRadio) {
+            contentTypeRadio.checked = true;
+        } else {
+            document.querySelector('input[value="normal"]').checked = true;
         }
+        
+        textEditor.value = chapter.content;
+        saveTextBtn.disabled = false;
+    }
 
-        // Genera il file EPUB
-        async function generateEpub() {
-            try {
-                // Salva le eventuali modifiche in corso
-                saveTextChanges();
-                
-                // Mostra il loader
-                generateEpubBtn.disabled = true;
-                generateSpinner.classList.remove('spinner-hidden');
-                generateSpinner.classList.add('spinner-visible');
-                
-                // Crea un nuovo file EPUB (ZIP)
-                const zip = new JSZip();
-                
-                // Aggiungi il file mimetype (deve essere il primo e non compresso)
-                zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
-                
-                // Crea la struttura delle cartelle
-                const metaInf = zip.folder('META-INF');
-                const oebps = zip.folder('OEBPS');
-                const textFolder = oebps.folder('text');
-                const cssFolder = oebps.folder('css');
-                const imagesFolder = oebps.folder('images');
-                
-                // Aggiungi il file container.xml
-                metaInf.file('container.xml', `<?xml version="1.0" encoding="UTF-8"?>
-                <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
-                  <rootfiles>
-                    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
-                  </rootfiles>
-                </container>`);
-                
-                // Aggiungi il CSS
-                cssFolder.file('style.css', `
-                body {
-                    font-family: serif;
-                    margin: 5%;
-                    text-align: justify;
-                    line-height: 1.5;
-                }
-                h1, h2, h3, h4, h5, h6 {
-                    text-align: center;
-                    line-height: 1.2;
-                    margin: 1em 0;
-                }
-                .title {
-                    font-size: 2em;
-                    font-weight: bold;
-                    margin-bottom: 1em;
-                    text-align: center;
-                }
-                .author {
-                    font-size: 1.5em;
-                    text-align: center;
-                    margin-bottom: 2em;
-                }
-                .chapter {
-                    page-break-before: always;
-                }
-                .chapter-title {
-                    font-size: 1.5em;
-                    font-weight: bold;
-                    text-align: center;
-                    margin-bottom: 1em;
-                }
-                p {
-                    text-indent: 1.5em;
-                    margin: 0;
-                }
-                .dedication {
-                    font-style: italic;
-                    text-align: center;
-                    margin: 2em 0;
-                }
-                .footnote {
-                    font-size: 0.9em;
-                    margin-top: 1em;
-                    border-top: 1px solid #ccc;
-                    padding-top: 0.5em;
-                }
-                `);
-                
-                // Crea la pagina di copertina
-                const coverHtml = `<?xml version="1.0" encoding="UTF-8"?>
-                <!DOCTYPE html>
-                <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
-                <head>
-                    <meta charset="UTF-8"/>
-                    <title>${escapeXml(bookTitle.value)}</title>
-                    <link rel="stylesheet" type="text/css" href="../css/style.css"/>
-                </head>
-                <body>
-                    <div class="title">${escapeXml(bookTitle.value)}</div>
-                    ${bookAuthor.value ? `<div class="author">di ${escapeXml(bookAuthor.value)}</div>` : ''}
-                </body>
-                </html>`;
-                
-                textFolder.file('cover.xhtml', coverHtml);
-                
-                // Crea la pagina di titolo
-                const titleHtml = `<?xml version="1.0" encoding="UTF-8"?>
-                <!DOCTYPE html>
-                <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
-                <head>
-                    <meta charset="UTF-8"/>
-                    <title>${escapeXml(bookTitle.value)}</title>
-                    <link rel="stylesheet" type="text/css" href="../css/style.css"/>
-                </head>
-                <body>
-                    <div class="title">${escapeXml(bookTitle.value)}</div>
-                    ${bookAuthor.value ? `<div class="author">di ${escapeXml(bookAuthor.value)}</div>` : ''}
-                    ${bookDescription.value ? `<div class="dedication">${escapeXml(bookDescription.value)}</div>` : ''}
-                </body>
-                </html>`;
-                
-                textFolder.file('title.xhtml', titleHtml);
-                
-                // Crea i file dei capitoli
-                const chapterFiles = [];
-                
-                for (let i = 0; i < chapters.length; i++) {
-                    const chapter = chapters[i];
-                    const filename = `chapter${(i+1).toString().padStart(3, '0')}.xhtml`;
-                    
-                    // Formatta il contenuto del capitolo (paragrafi)
-                    let contentHtml = '';
-                    const paragraphs = chapter.content.split(/\n\s*\n/);
-                    
-                    for (const paragraph of paragraphs) {
-                        if (paragraph.trim()) {
-                            contentHtml += `<p>${escapeXml(paragraph.trim())}</p>\n`;
-                        }
-                    }
-                    
-                    const chapterHtml = `<?xml version="1.0" encoding="UTF-8"?>
-                    <!DOCTYPE html>
-                    <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
-                    <head>
-                        <meta charset="UTF-8"/>
-                        <title>${escapeXml(chapter.title)}</title>
-                        <link rel="stylesheet" type="text/css" href="../css/style.css"/>
-                    </head>
-                    <body>
-                        <div class="chapter">
-                            <div class="chapter-title">${escapeXml(chapter.title)}</div>
-                            ${contentHtml}
-                        </div>
-                    </body>
-                    </html>`;
-                    
-                    textFolder.file(filename, chapterHtml);
-                    chapterFiles.push({
-                        id: `chapter${i+1}`,
-                        filename: filename,
-                        title: chapter.title
-                    });
-                }
-                
-                // Crea la Table of Contents
-                const tocHtml = `<?xml version="1.0" encoding="UTF-8"?>
-                <!DOCTYPE html>
-                <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
-                <head>
-                    <meta charset="UTF-8"/>
-                    <title>Indice</title>
-                    <link rel="stylesheet" type="text/css" href="../css/style.css"/>
-                </head>
-                <body>
-                    <div class="chapter-title">Indice</div>
-                    <nav epub:type="toc" id="toc">
-                        <ol>
-                            <li><a href="cover.xhtml">Copertina</a></li>
-                            <li><a href="title.xhtml">Frontespizio</a></li>
-                            ${chapterFiles.map(chapter => 
-                                `<li><a href="${chapter.filename}">${escapeXml(chapter.title)}</a></li>`
-                            ).join('\n')}
-                        </ol>
-                    </nav>
-                </body>
-                </html>`;
-                
-                textFolder.file('toc.xhtml', tocHtml);
-                
-                // Crea il file NCX (Navigation Control file for XML) per la compatibilità
-                const ncxContent = `<?xml version="1.0" encoding="UTF-8"?>
-                <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
-                    <head>
-                        <meta name="dtb:uid" content="urn:uuid:${generateUUID()}"/>
-                        <meta name="dtb:depth" content="1"/>
-                        <meta name="dtb:totalPageCount" content="0"/>
-                        <meta name="dtb:maxPageNumber" content="0"/>
-                    </head>
-                    <docTitle>
-                        <text>${escapeXml(bookTitle.value)}</text>
-                    </docTitle>
-                    <navMap>
-                        <navPoint id="navpoint-1" playOrder="1">
-                            <navLabel>
-                                <text>Copertina</text>
-                            </navLabel>
-                            <content src="text/cover.xhtml"/>
-                        </navPoint>
-                        <navPoint id="navpoint-2" playOrder="2">
-                            <navLabel>
-                                <text>Frontespizio</text>
-                            </navLabel>
-                            <content src="text/title.xhtml"/>
-                        </navPoint>
-                        ${chapterFiles.map((chapter, index) => 
-                            `<navPoint id="navpoint-${index+3}" playOrder="${index+3}">
-                                <navLabel>
-                                    <text>${escapeXml(chapter.title)}</text>
-                                </navLabel>
-                                <content src="text/${chapter.filename}"/>
-                            </navPoint>`
-                        ).join('\n')}
-                    </navMap>
-                </ncx>`;
-                
-                oebps.file('toc.ncx', ncxContent);
-                
-                // Crea il file OPF (Open Packaging Format)
-                const opfContent = `<?xml version="1.0" encoding="UTF-8"?>
-                <package xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookID" version="3.0">
-                    <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
-                        <dc:identifier id="BookID">urn:uuid:${generateUUID()}</dc:identifier>
-                        <dc:title>${escapeXml(bookTitle.value)}</dc:title>
-                        ${bookAuthor.value ? `<dc:creator>${escapeXml(bookAuthor.value)}</dc:creator>` : ''}
-                        <dc:language>${escapeXml(bookLanguage.value)}</dc:language>
-                        <dc:date>${new Date().toISOString().split('T')[0]}</dc:date>
-                        <meta property="dcterms:modified">${new Date().toISOString().replace(/\.\d+Z$/, 'Z')}</meta>
-                    </metadata>
-                    <manifest>
-                        <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
-                        <item id="nav" href="text/toc.xhtml" properties="nav" media-type="application/xhtml+xml"/>
-                        <item id="css" href="css/style.css" media-type="text/css"/>
-                        <item id="cover" href="text/cover.xhtml" media-type="application/xhtml+xml"/>
-                        <item id="title" href="text/title.xhtml" media-type="application/xhtml+xml"/>
-                        ${chapterFiles.map(chapter => 
-                            `<item id="${chapter.id}" href="text/${chapter.filename}" media-type="application/xhtml+xml"/>`
-                        ).join('\n')}
-                    </manifest>
-                    <spine toc="ncx">
-                        <itemref idref="cover"/>
-                        <itemref idref="title"/>
-                        <itemref idref="nav"/>
-                        ${chapterFiles.map(chapter => 
-                            `<itemref idref="${chapter.id}"/>`
-                        ).join('\n')}
-                    </spine>
-                </package>`;
-                
-                oebps.file('content.opf', opfContent);
-                
-                // Genera il file ZIP
-                const epubContent = await zip.generateAsync({
-                    type: 'blob',
-                    mimeType: 'application/epub+zip',
-                    compression: 'DEFLATE',
-                    compressionOptions: { level: 9 }
-                });
-                
-                // Memorizza il blob per il download
-                epubBlob = epubContent;
-                
-                // Vai al passo finale
-                goToStep(4);
-                
-            } catch (error) {
-                console.error('Errore nella generazione dell\'EPUB:', error);
-                showNotification('Si è verificato un errore durante la generazione dell\'EPUB. ' + error.message, true);
-            } finally {
-                // Nascondi il loader
-                generateSpinner.classList.remove('spinner-visible');
-                generateSpinner.classList.add('spinner-hidden');
-                generateEpubBtn.disabled = false;
+    // Aggiorna il tipo di contenuto del capitolo corrente
+    function updateContentType(type) {
+        const selectedIndex = parseInt(chapterSelect.value);
+        if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= chapters.length) return;
+        
+        chapters[selectedIndex].type = type;
+        updateChaptersList();
+    }
+
+    // Aggiungi un nuovo capitolo
+    function addNewChapter() {
+        currentEditingChapterIndex = -1;
+        chapterTitle.value = '';
+        chapterStartPosition.value = extractedText.length;
+        sectionType.value = 'normal';
+        openModal();
+    }
+
+    // Apri il modal per modificare un capitolo
+    function openEditChapterModal(index) {
+        currentEditingChapterIndex = index;
+        const chapter = chapters[index];
+        
+        chapterTitle.value = chapter.title;
+        chapterStartPosition.value = chapter.startPosition;
+        sectionType.value = chapter.type || 'normal';
+        
+        openModal();
+    }
+
+    // Salva le modifiche al capitolo
+    function saveChapterChanges() {
+        const title = chapterTitle.value.trim();
+        const startPos = parseInt(chapterStartPosition.value);
+        const type = sectionType.value;
+        
+        if (!title) {
+            showNotification('Inserisci un titolo per la sezione.', true);
+            return;
+        }
+        
+        if (isNaN(startPos) || startPos < 0 || startPos >= extractedText.length) {
+            showNotification('Posizione di inizio non valida.', true);
+            return;
+        }
+        
+        if (currentEditingChapterIndex === -1) {
+            // Nuovo capitolo
+            const newChapter = {
+                title: title,
+                startPosition: startPos,
+                content: extractedText.substring(startPos).trim(),
+                type: type
+            };
+            
+            chapters.push(newChapter);
+            
+            // Aggiorna i capitoli esistenti
+            updateChapterBoundaries();
+        } else {
+            // Modifica di un capitolo esistente
+            chapters[currentEditingChapterIndex].title = title;
+            chapters[currentEditingChapterIndex].startPosition = startPos;
+            chapters[currentEditingChapterIndex].type = type;
+            
+            // Aggiorna il contenuto in base alla nuova posizione
+            updateChapterBoundaries();
+        }
+        
+        // Aggiorna l'UI
+        updateChaptersList();
+        
+        // Chiudi il modal
+        closeModal();
+    }
+
+    // Aggiorna i confini dei capitoli dopo modifiche
+    function updateChapterBoundaries() {
+        // Ordina i capitoli per posizione
+        chapters.sort((a, b) => a.startPosition - b.startPosition);
+        
+        // Aggiorna il contenuto di ciascun capitolo
+        for (let i = 0; i < chapters.length; i++) {
+            const startPos = chapters[i].startPosition;
+            const endPos = (i < chapters.length - 1) ? chapters[i+1].startPosition : extractedText.length;
+            
+            chapters[i].content = extractedText.substring(startPos, endPos).trim();
+        }
+    }
+
+    // Elimina un capitolo
+    function deleteChapter(index) {
+        if (chapters.length <= 1) {
+            showNotification('Non è possibile eliminare l\'unica sezione presente.', true);
+            return;
+        }
+        
+        // Rimuovi il capitolo
+        chapters.splice(index, 1);
+        
+        // Aggiorna l'UI
+        updateChaptersList();
+        
+        showNotification('Sezione eliminata con successo.');
+    }
+
+    // Procedi alla fase di modifica del testo
+    function goToEditStep() {
+        goToStep(3);
+        loadChapterContent();
+    }
+
+    // Salva le modifiche al testo del capitolo
+    function saveTextChanges() {
+        const selectedIndex = parseInt(chapterSelect.value);
+        if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= chapters.length) return;
+        
+        // Salva il contenuto modificato
+        chapters[selectedIndex].content = textEditor.value;
+        
+        // Salva anche il tipo di contenuto
+        const selectedType = document.querySelector('input[name="contentType"]:checked').value;
+        chapters[selectedIndex].type = selectedType;
+        
+        showNotification('Modifiche salvate con successo.');
+    }
+
+    // Genera il file EPUB
+    async function generateEpub() {
+        try {
+            // Salva le eventuali modifiche in corso
+            saveTextChanges();
+            
+            // Mostra il loader
+            generateEpubBtn.disabled = true;
+            generateSpinner.classList.remove('spinner-hidden');
+            generateSpinner.classList.add('spinner-visible');
+            
+            // Crea un nuovo file EPUB (ZIP)
+            const zip = new JSZip();
+            
+            // Aggiungi il file mimetype (deve essere il primo e non compresso)
+            zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
+            
+            // Crea la struttura delle cartelle
+            const metaInf = zip.folder('META-INF');
+            const oebps = zip.folder('OEBPS');
+            const textFolder = oebps.folder('text');
+            const cssFolder = oebps.folder('css');
+            const imagesFolder = oebps.folder('images');
+            
+            // Aggiungi il file container.xml
+            metaInf.file('container.xml', `<?xml version="1.0" encoding="UTF-8"?>
+            <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+              <rootfiles>
+                <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+              </rootfiles>
+            </container>`);
+            
+            // Aggiungi il CSS con stili migliorati per i vari tipi di contenuto
+            cssFolder.file('style.css', `
+            body {
+                font-family: serif;
+                margin: 5%;
+                text-align: justify;
+                line-height: 1.5;
             }
-        }
-
-        // Scarica il file EPUB
-        function downloadEpub() {
-            if (!epubBlob) {
-                showNotification('Nessun file EPUB generato. Riprova.', true);
-                return;
+            h1, h2, h3, h4, h5, h6 {
+                text-align: center;
+                line-height: 1.2;
+                margin: 1em 0;
             }
-            
-            // Crea un URL per il download
-            const url = URL.createObjectURL(epubBlob);
-            
-            // Crea un elemento link per il download
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${bookTitle.value || 'libro'}.epub`;
-            document.body.appendChild(a);
-            
-            // Simula il click per avviare il download
-            a.click();
-            
-            // Rimuovi l'elemento e rilascia l'URL
-            setTimeout(() => {
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            }, 100);
-            
-            showNotification('Download avviato con successo!');
-        }
-
-        // Resetta l'applicazione
-        function resetApp() {
-            // Resetta le variabili globali
-            currentPdfFile = null;
-            extractedText = '';
-            pdfDocument = null;
-            chapters = [];
-            currentEditingChapterIndex = -1;
-            epubBlob = null;
-            
-            // Resetta l'UI
-            fileInfo.style.display = 'none';
-            progressContainer.style.display = 'none';
-            progressBar.style.width = '0%';
-            textEditor.value = '';
-            
-            // Disabilita i pulsanti
-            extractTextBtn.disabled = true;
-            saveTextBtn.disabled = true;
-            proceedToEditBtn.disabled = true;
-            
-            // Resetta i campi
-            bookTitle.value = '';
-            bookAuthor.value = '';
-            bookDescription.value = '';
-            bookLanguage.value = 'it';
-            
-            // Torna al primo passo
-            goToStep(0);
-        }
-
-        // Passa a un determinato step
-        function goToStep(stepIndex) {
-            // Aggiorna la classe active
-            steps.forEach((step, index) => {
-                if (index <= stepIndex) {
-                    step.classList.add('active');
-                } else {
-                    step.classList.remove('active');
-                }
-            });
-        }
-
-        // Utility per aprire un modal
-        function openModal() {
-            chapterModal.style.display = 'flex';
-        }
-
-        // Utility per chiudere un modal
-        function closeModal() {
-            chapterModal.style.display = 'none';
-        }
-
-        // Mostra una notifica
-        function showNotification(message, isError = false) {
-            notification.textContent = message;
-            notification.className = 'notification' + (isError ? ' error' : '');
-            
-            // Mostra la notifica
-            notification.classList.add('show');
-            
-            // Nascondi la notifica dopo 3 secondi
-            setTimeout(() => {
-                notification.classList.remove('show');
-            }, 3000);
-        }
-
-        // Utility per leggere un file come ArrayBuffer
-        function readFileAsArrayBuffer(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = reject;
-                reader.readAsArrayBuffer(file);
-            });
-        }
-
-        // Utility per formattare la dimensione del file
-        function formatFileSize(bytes) {
-            if (bytes < 1024) {
-                return bytes + ' B';
-            } else if (bytes < 1024 * 1024) {
-                return (bytes / 1024).toFixed(2) + ' KB';
-            } else {
-                return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+            .title {
+                font-size: 2em;
+                font-weight: bold;
+                margin-bottom: 1em;
+                text-align: center;
             }
-        }
+            .author {
+                font-size: 1.5em;
+                text-align: center;
+                margin-bottom: 2em;
+            }
+            .chapter {
+                page-break-before: always;
+            }
+            .chapter-title {
+                font-size: 1.5em;
+                font-weight: bold;
+                text-align: center;
+                margin-bottom: 1em;
+            }
+p {
+                   text-indent: 1.5em;
+                   margin: 0;
+               }
+               .dedication {
+                   font-style: italic;
+                   text-align: center;
+                   margin: 2em 0;
+                   page-break-before: always;
+               }
+               .quote {
+                   font-style: italic;
+                   margin: 2em 5%;
+                   text-align: justify;
+                   page-break-before: always;
+               }
+               .quote .attribution {
+                   text-align: right;
+                   margin-top: 1em;
+               }
+               .colophon {
+                   font-size: 0.9em;
+                   text-align: center;
+                   margin: 2em 0;
+                   page-break-before: always;
+               }
+               .footnote {
+                   font-size: 0.9em;
+                   margin-top: 1em;
+                   border-top: 1px solid #ccc;
+                   padding-top: 0.5em;
+               }
+               .preserve-whitespace {
+                   white-space: pre-wrap;
+               }
+               .no-indent {
+                   text-indent: 0;
+               }
+               .centered {
+                   text-align: center;
+                   text-indent: 0;
+               }
+               `);
+               
+               // Crea la pagina di copertina
+               const coverHtml = `<?xml version="1.0" encoding="UTF-8"?>
+               <!DOCTYPE html>
+               <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+               <head>
+                   <meta charset="UTF-8"/>
+                   <title>${escapeXml(bookTitle.value)}</title>
+                   <link rel="stylesheet" type="text/css" href="../css/style.css"/>
+               </head>
+               <body>
+                   <div class="title">${escapeXml(bookTitle.value)}</div>
+                   ${bookAuthor.value ? `<div class="author">di ${escapeXml(bookAuthor.value)}</div>` : ''}
+               </body>
+               </html>`;
+               
+               textFolder.file('cover.xhtml', coverHtml);
+               
+               // Crea la pagina di titolo
+               const titleHtml = `<?xml version="1.0" encoding="UTF-8"?>
+               <!DOCTYPE html>
+               <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+               <head>
+                   <meta charset="UTF-8"/>
+                   <title>${escapeXml(bookTitle.value)}</title>
+                   <link rel="stylesheet" type="text/css" href="../css/style.css"/>
+               </head>
+               <body>
+                   <div class="title">${escapeXml(bookTitle.value)}</div>
+                   ${bookAuthor.value ? `<div class="author">di ${escapeXml(bookAuthor.value)}</div>` : ''}
+                   ${bookDescription.value ? `<div class="dedication">${escapeXml(bookDescription.value)}</div>` : ''}
+               </body>
+               </html>`;
+               
+               textFolder.file('title.xhtml', titleHtml);
+               
+               // Crea i file dei capitoli
+               const chapterFiles = [];
+               
+               for (let i = 0; i < chapters.length; i++) {
+                   const chapter = chapters[i];
+                   const filename = `chapter${(i+1).toString().padStart(3, '0')}.xhtml`;
+                   
+                   // Formatta il contenuto in base al tipo di sezione
+                   let contentHtml = '';
+                   let chapterClass = '';
+                   
+                   switch (chapter.type) {
+                       case 'dedication':
+                           contentHtml = formatDedication(chapter.content);
+                           chapterClass = 'dedication';
+                           break;
+                       case 'quote':
+                           contentHtml = formatQuote(chapter.content);
+                           chapterClass = 'quote';
+                           break;
+                       case 'colophon':
+                           contentHtml = formatColophon(chapter.content);
+                           chapterClass = 'colophon';
+                           break;
+                       case 'title':
+                           contentHtml = formatTitle(chapter.content);
+                           chapterClass = 'title';
+                           break;
+                       case 'chapter':
+                       case 'normal':
+                       default:
+                           contentHtml = formatNormalText(chapter.content);
+                           chapterClass = chapter.type === 'chapter' ? 'chapter' : 'normal';
+                           break;
+                   }
+                   
+                   const chapterHtml = `<?xml version="1.0" encoding="UTF-8"?>
+                   <!DOCTYPE html>
+                   <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+                   <head>
+                       <meta charset="UTF-8"/>
+                       <title>${escapeXml(chapter.title)}</title>
+                       <link rel="stylesheet" type="text/css" href="../css/style.css"/>
+                   </head>
+                   <body>
+                       <div class="${chapterClass}">
+                           <div class="chapter-title">${escapeXml(chapter.title)}</div>
+                           ${contentHtml}
+                       </div>
+                   </body>
+                   </html>`;
+                   
+                   textFolder.file(filename, chapterHtml);
+                   chapterFiles.push({
+                       id: `chapter${i+1}`,
+                       filename: filename,
+                       title: chapter.title,
+                       type: chapter.type
+                   });
+               }
+               
+               // Crea la Table of Contents
+               const tocHtml = `<?xml version="1.0" encoding="UTF-8"?>
+               <!DOCTYPE html>
+               <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+               <head>
+                   <meta charset="UTF-8"/>
+                   <title>Indice</title>
+                   <link rel="stylesheet" type="text/css" href="../css/style.css"/>
+               </head>
+               <body>
+                   <div class="chapter-title">Indice</div>
+                   <nav epub:type="toc" id="toc">
+                       <ol>
+                           <li><a href="cover.xhtml">Copertina</a></li>
+                           <li><a href="title.xhtml">Frontespizio</a></li>
+                           ${chapterFiles.map(chapter => 
+                               `<li><a href="${chapter.filename}">${escapeXml(chapter.title)}</a></li>`
+                           ).join('\n')}
+                       </ol>
+                   </nav>
+               </body>
+               </html>`;
+               
+               textFolder.file('toc.xhtml', tocHtml);
+               
+               // Crea il file NCX (Navigation Control file for XML) per la compatibilità
+               const ncxContent = `<?xml version="1.0" encoding="UTF-8"?>
+               <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+                   <head>
+                       <meta name="dtb:uid" content="urn:uuid:${generateUUID()}"/>
+                       <meta name="dtb:depth" content="1"/>
+                       <meta name="dtb:totalPageCount" content="0"/>
+                       <meta name="dtb:maxPageNumber" content="0"/>
+                   </head>
+                   <docTitle>
+                       <text>${escapeXml(bookTitle.value)}</text>
+                   </docTitle>
+                   <navMap>
+                       <navPoint id="navpoint-1" playOrder="1">
+                           <navLabel>
+                               <text>Copertina</text>
+                           </navLabel>
+                           <content src="text/cover.xhtml"/>
+                       </navPoint>
+                       <navPoint id="navpoint-2" playOrder="2">
+                           <navLabel>
+                               <text>Frontespizio</text>
+                           </navLabel>
+                           <content src="text/title.xhtml"/>
+                       </navPoint>
+                       ${chapterFiles.map((chapter, index) => 
+                           `<navPoint id="navpoint-${index+3}" playOrder="${index+3}">
+                               <navLabel>
+                                   <text>${escapeXml(chapter.title)}</text>
+                               </navLabel>
+                               <content src="text/${chapter.filename}"/>
+                           </navPoint>`
+                       ).join('\n')}
+                   </navMap>
+               </ncx>`;
+               
+               oebps.file('toc.ncx', ncxContent);
+               
+               // Crea il file OPF (Open Packaging Format)
+               const opfContent = `<?xml version="1.0" encoding="UTF-8"?>
+               <package xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookID" version="3.0">
+                   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+                       <dc:identifier id="BookID">urn:uuid:${generateUUID()}</dc:identifier>
+                       <dc:title>${escapeXml(bookTitle.value)}</dc:title>
+                       ${bookAuthor.value ? `<dc:creator>${escapeXml(bookAuthor.value)}</dc:creator>` : ''}
+                       <dc:language>${escapeXml(bookLanguage.value)}</dc:language>
+                       <dc:date>${new Date().toISOString().split('T')[0]}</dc:date>
+                       <meta property="dcterms:modified">${new Date().toISOString().replace(/\.\d+Z$/, 'Z')}</meta>
+                   </metadata>
+                   <manifest>
+                       <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+                       <item id="nav" href="text/toc.xhtml" properties="nav" media-type="application/xhtml+xml"/>
+                       <item id="css" href="css/style.css" media-type="text/css"/>
+                       <item id="cover" href="text/cover.xhtml" media-type="application/xhtml+xml"/>
+                       <item id="title" href="text/title.xhtml" media-type="application/xhtml+xml"/>
+                       ${chapterFiles.map(chapter => 
+                           `<item id="${chapter.id}" href="text/${chapter.filename}" media-type="application/xhtml+xml"/>`
+                       ).join('\n')}
+                   </manifest>
+                   <spine toc="ncx">
+                       <itemref idref="cover"/>
+                       <itemref idref="title"/>
+                       <itemref idref="nav"/>
+                       ${chapterFiles.map(chapter => 
+                           `<itemref idref="${chapter.id}"/>`
+                       ).join('\n')}
+                   </spine>
+               </package>`;
+               
+               oebps.file('content.opf', opfContent);
+               
+               // Genera il file ZIP
+               const epubContent = await zip.generateAsync({
+                   type: 'blob',
+                   mimeType: 'application/epub+zip',
+                   compression: 'DEFLATE',
+                   compressionOptions: { level: 9 }
+               });
+               
+               // Memorizza il blob per il download
+               epubBlob = epubContent;
+               
+               // Vai al passo finale
+               goToStep(4);
+               
+           } catch (error) {
+               console.error('Errore nella generazione dell\'EPUB:', error);
+               showNotification('Si è verificato un errore durante la generazione dell\'EPUB. ' + error.message, true);
+           } finally {
+               // Nascondi il loader
+               generateSpinner.classList.remove('spinner-visible');
+               generateSpinner.classList.add('spinner-hidden');
+               generateEpubBtn.disabled = false;
+           }
+       }
 
-        // Utility per generare un UUID
-        function generateUUID() {
-            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-                const r = Math.random() * 16 | 0;
-                const v = c === 'x' ? r : (r & 0x3 | 0x8);
-                return v.toString(16);
-            });
-        }
+       // Formatta il testo normale (capitoli e testo generico)
+       function formatNormalText(text) {
+           // Dividi in paragrafi
+           const paragraphs = text.split(/\n\s*\n/);
+           let html = '';
+           
+           for (const paragraph of paragraphs) {
+               if (paragraph.trim()) {
+                   // Verifica se è un paragrafo centrato (tutto maiuscolo o inizia con * o simili)
+                   if (/^[A-ZÀÈÌÒÙ\s,.;:'"!?0-9]+$/.test(paragraph) || 
+                       /^[*\s_-]+/.test(paragraph)) {
+                       html += `<p class="centered">${escapeXml(paragraph.trim())}</p>\n`;
+                   } 
+                   // Verifica se è un paragrafo senza indentazione (inizia con tab o spazi)
+                   else if (/^\s+/.test(paragraph)) {
+                       html += `<p class="no-indent">${escapeXml(paragraph.trim())}</p>\n`;
+                   } 
+                   // Paragrafo normale
+                   else {
+                       html += `<p>${escapeXml(paragraph.trim())}</p>\n`;
+                   }
+               }
+           }
+           
+           return html;
+       }
 
-        // Utility per escape dei caratteri XML
-        function escapeXml(unsafe) {
-            if (!unsafe) return '';
-            return unsafe
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&apos;');
-        }
-    </script>
+       // Formatta una dedica
+       function formatDedication(text) {
+           return `<div class="dedication">${escapeXml(text.trim())}</div>`;
+       }
+
+       // Formatta una citazione
+       function formatQuote(text) {
+           const lines = text.split('\n');
+           let quoteText = '';
+           let attribution = '';
+           
+           // Cerca di separare la citazione dall'attribuzione
+           const attributionIndex = text.lastIndexOf('—');
+           if (attributionIndex !== -1) {
+               quoteText = text.substring(0, attributionIndex).trim();
+               attribution = text.substring(attributionIndex).trim();
+               
+               return `<div class="quote">
+                   <div class="quote-text">${escapeXml(quoteText)}</div>
+                   <div class="attribution">${escapeXml(attribution)}</div>
+               </div>`;
+           } else {
+               return `<div class="quote">${escapeXml(text.trim())}</div>`;
+           }
+       }
+
+       // Formatta un colophon
+       function formatColophon(text) {
+           // Preserva gli a capo nel colophon
+           return `<div class="colophon preserve-whitespace">${escapeXml(text.trim())}</div>`;
+       }
+
+       // Formatta un titolo
+       function formatTitle(text) {
+           // Preserva la formattazione originale per i titoli
+           return `<div class="title preserve-whitespace">${escapeXml(text.trim())}</div>`;
+       }
+
+       // Scarica il file EPUB
+       function downloadEpub() {
+           if (!epubBlob) {
+               showNotification('Nessun file EPUB generato. Riprova.', true);
+               return;
+           }
+           
+           // Crea un URL per il download
+           const url = URL.createObjectURL(epubBlob);
+           
+           // Crea un elemento link per il download
+           const a = document.createElement('a');
+           a.href = url;
+           a.download = `${bookTitle.value || 'libro'}.epub`;
+           document.body.appendChild(a);
+           
+           // Simula il click per avviare il download
+           a.click();
+           
+           // Rimuovi l'elemento e rilascia l'URL
+           setTimeout(() => {
+               document.body.removeChild(a);
+               URL.revokeObjectURL(url);
+           }, 100);
+           
+           showNotification('Download avviato con successo!');
+       }
+
+       // Resetta l'applicazione
+       function resetApp() {
+           // Resetta le variabili globali
+           currentPdfFile = null;
+           extractedText = '';
+           pdfDocument = null;
+           chapters = [];
+           currentEditingChapterIndex = -1;
+           epubBlob = null;
+           
+           // Resetta l'UI
+           fileInfo.style.display = 'none';
+           progressContainer.style.display = 'none';
+           progressBar.style.width = '0%';
+           textEditor.value = '';
+           
+           // Disabilita i pulsanti
+           extractTextBtn.disabled = true;
+           saveTextBtn.disabled = true;
+           proceedToEditBtn.disabled = true;
+           
+           // Resetta i campi
+           bookTitle.value = '';
+           bookAuthor.value = '';
+           bookDescription.value = '';
+           bookLanguage.value = 'it';
+           
+           // Torna al primo passo
+           goToStep(0);
+       }
+
+       // Passa a un determinato step
+       function goToStep(stepIndex) {
+           // Aggiorna la classe active
+           steps.forEach((step, index) => {
+               if (index <= stepIndex) {
+                   step.classList.add('active');
+               } else {
+                   step.classList.remove('active');
+               }
+           });
+       }
+
+       // Utility per aprire un modal
+       function openModal() {
+           chapterModal.style.display = 'flex';
+       }
+
+       // Utility per chiudere un modal
+       function closeModal() {
+           chapterModal.style.display = 'none';
+       }
+
+       // Mostra una notifica
+       function showNotification(message, isError = false) {
+           notification.textContent = message;
+           notification.className = 'notification' + (isError ? ' error' : '');
+           
+           // Mostra la notifica
+           notification.classList.add('show');
+           
+           // Nascondi la notifica dopo 3 secondi
+           setTimeout(() => {
+               notification.classList.remove('show');
+           }, 3000);
+       }
+
+       // Utility per leggere un file come ArrayBuffer
+       function readFileAsArrayBuffer(file) {
+           return new Promise((resolve, reject) => {
+               const reader = new FileReader();
+               reader.onload = () => resolve(reader.result);
+               reader.onerror = reject;
+               reader.readAsArrayBuffer(file);
+           });
+       }
+
+       // Utility per formattare la dimensione del file
+       function formatFileSize(bytes) {
+           if (bytes < 1024) {
+               return bytes + ' B';
+           } else if (bytes < 1024 * 1024) {
+               return (bytes / 1024).toFixed(2) + ' KB';
+           } else {
+               return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+           }
+       }
+
+       // Utility per generare un UUID
+       function generateUUID() {
+           return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+               const r = Math.random() * 16 | 0;
+               const v = c === 'x' ? r : (r & 0x3 | 0x8);
+               return v.toString(16);
+           });
+       }
+
+       // Utility per escape dei caratteri XML
+       function escapeXml(unsafe) {
+           if (!unsafe) return '';
+           return unsafe
+               .replace(/&/g, '&amp;')
+               .replace(/</g, '&lt;')
+               .replace(/>/g, '&gt;')
+               .replace(/"/g, '&quot;')
+               .replace(/'/g, '&apos;');
+       }
+   </script>
 </body>
 </html>
