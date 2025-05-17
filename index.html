@@ -442,10 +442,10 @@
                             <input type="checkbox" id="detectSpecialSections" checked />
                             <label for="detectSpecialSections">Rileva sezioni speciali</label>
                         </div>
-                        <div class="option-item">
-                            <input type="checkbox" id="removePageBreaks" checked />
-                            <label for="removePageBreaks">Rimuovi interruzioni di pagina</label>
-                        </div>
+                       <div class="option-item">
+    <input type="checkbox" id="removePageBreaks" checked />
+    <label for="removePageBreaks">Mantieni interruzioni di pagina solo ai capitoli</label>
+</div>
                     </div>
                     <button id="extractTextBtn" disabled>
                         <span class="loading-spinner spinner-hidden" id="extractSpinner"></span>
@@ -942,14 +942,10 @@
                 previousPageLastLine = '';
             }
             
-            // Aggiungi il testo della pagina al testo elaborato
-            if (removePageBreaks.checked && i > 0) {
-                // Aggiungi il testo senza un'interruzione di pagina esplicita
-                processedText += (processedText.endsWith('\n') ? '' : '\n') + pageText;
-            } else {
-                // Aggiungi un'interruzione di pagina
-                processedText += (i > 0 ? '\n\n' : '') + pageText;
-            }
+// Aggiungi il testo della pagina al testo elaborato senza interruzioni di pagina
+// (le interruzioni saranno aggiunte solo alla fine dei capitoli)
+processedText += (processedText.endsWith('\n') ? '' : '\n') + pageText;
+            
         }
         
         // Riparazione della sillabazione all'interno delle pagine
@@ -1913,32 +1909,31 @@ const tocHtml = `<?xml version="1.0" encoding="UTF-8"?>
            }
        }
 
-       // Formatta il testo normale (capitoli e testo generico)
-       function formatNormalText(text) {
-           // Dividi in paragrafi
-           const paragraphs = text.split(/\n\s*\n/);
-           let html = '';
-           
-           for (const paragraph of paragraphs) {
-               if (paragraph.trim()) {
-                   // Verifica se è un paragrafo centrato (tutto maiuscolo o inizia con * o simili)
-                   if (/^[A-ZÀÈÌÒÙ\s,.;:'"!?0-9]+$/.test(paragraph) || 
-                       /^[*\s_-]+/.test(paragraph)) {
-                       html += `<p class="centered">${escapeXml(paragraph.trim())}</p>\n`;
-                   } 
-                   // Verifica se è un paragrafo senza indentazione (inizia con tab o spazi)
-                   else if (/^\s+/.test(paragraph)) {
-                       html += `<p class="no-indent">${escapeXml(paragraph.trim())}</p>\n`;
-                   } 
-                   // Paragrafo normale
-                   else {
-                       html += `<p>${escapeXml(paragraph.trim())}</p>\n`;
-                   }
-               }
-           }
-           
-           return html;
-       }
+      function formatNormalText(text) {
+    // Dividi in paragrafi
+    const paragraphs = text.split(/\n\s*\n/);
+    let html = '';
+    
+    for (const paragraph of paragraphs) {
+        if (paragraph.trim()) {
+            // Verifica se è un paragrafo centrato (tutto maiuscolo o inizia con * o simili)
+            if (/^[A-ZÀÈÌÒÙ\s,.;:'"!?0-9]+$/.test(paragraph) || 
+                /^[*\s_-]+/.test(paragraph)) {
+                html += `<p class="centered">${escapeXml(paragraph.trim())}</p>\n`;
+            } 
+            // Verifica se è un paragrafo senza indentazione (inizia con tab o spazi)
+            else if (/^\s+/.test(paragraph)) {
+                html += `<p class="no-indent">${escapeXml(paragraph.trim())}</p>\n`;
+            } 
+            // Paragrafo normale
+            else {
+                html += `<p>${escapeXml(paragraph.trim())}</p>\n`;
+            }
+        }
+    }
+    
+    return html;
+}
 
        // Formatta una dedica
        function formatDedication(text) {
