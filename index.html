@@ -435,17 +435,17 @@
                             <label for="fixHyphenation">Ripara sillabazione</label>
                         </div>
                         <div class="option-item">
-                            <input type="checkbox" id="preserveLineBreaks" checked />
-                            <label for="preserveLineBreaks">Preserva interruzioni di riga</label>
+                            <input type="checkbox" id="smartLineBreaks" checked />
+                            <label for="smartLineBreaks">Mantieni interruzioni di riga solo dopo punteggiatura</label>
                         </div>
                         <div class="option-item">
                             <input type="checkbox" id="detectSpecialSections" checked />
                             <label for="detectSpecialSections">Rileva sezioni speciali</label>
                         </div>
-                       <div class="option-item">
-    <input type="checkbox" id="removePageBreaks" checked />
-    <label for="removePageBreaks">Mantieni interruzioni di pagina solo ai capitoli</label>
-</div>
+                        <div class="option-item">
+                            <input type="checkbox" id="chapterPageBreaks" checked />
+                            <label for="chapterPageBreaks">Interruzioni di pagina solo ai capitoli</label>
+                        </div>
                     </div>
                     <button id="extractTextBtn" disabled>
                         <span class="loading-spinner spinner-hidden" id="extractSpinner"></span>
@@ -623,9 +623,9 @@
         const removeHeadersFooters = document.getElementById('removeHeadersFooters');
         const detectChapters = document.getElementById('detectChapters');
         const fixHyphenation = document.getElementById('fixHyphenation');
-        const preserveLineBreaks = document.getElementById('preserveLineBreaks');
+        const smartLineBreaks = document.getElementById('smartLineBreaks');
         const detectSpecialSections = document.getElementById('detectSpecialSections');
-        const removePageBreaks = document.getElementById('removePageBreaks');
+        const chapterPageBreaks = document.getElementById('chapterPageBreaks');
         const bookTitle = document.getElementById('bookTitle');
         const bookAuthor = document.getElementById('bookAuthor');
         const bookLanguage = document.getElementById('bookLanguage');
@@ -812,850 +812,889 @@
                 progressBar.style.width = '0%';
                 
                 // Carica il PDF
-                const arrayBuffer = await readFileAsArrayBuffer(currentPdfFile);
-                pdfDocument = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-                const numPages = pdfDocument.numPages;
-            let fullText = '';
-            let pageContents = []; // Memorizza il contenuto di ogni pagina separatamente
-            
-            // Estrai il testo da ogni pagina
-            for (let i = 1; i <= numPages; i++) {
-                const page = await pdfDocument.getPage(i);
-                const textContent = await page.getTextContent();
-                
-                let pageText = '';
-                let lastY, lastItem;
-                let currentLine = '';
-                let lines = [];
-                
-                // Combina gli elementi di testo con un'elaborazione migliorata delle linee
-                for (const item of textContent.items) {
-                    // Se è una nuova riga (coordinata Y diversa)
-                    if (lastY !== undefined && Math.abs(lastY - item.transform[5]) > 1) {
-                        if (currentLine.trim()) {
-                            lines.push(currentLine.trim());
-                        }
-                        currentLine = item.str;
-                    } else if (lastItem && preserveLineBreaks.checked) {
-                        // Calcola lo spazio tra gli elementi per determinare se è uno spazio reale
-                        const lastTransform = lastItem.transform;
-                        const lastWidth = lastItem.width;
-                        const lastEndX = lastTransform[4] + lastWidth;
-                        const currentStartX = item.transform[4];
-                        const spacingThreshold = 3; // Soglia per determinare uno spazio significativo
-                        
-                        if (currentStartX - lastEndX > spacingThreshold) {
-                            currentLine += ' ' + item.str;
-                        } else {
-                            currentLine += item.str;
-                        }
-                    } else {
-                        currentLine += item.str;
-                    }
-                    
-                    lastY = item.transform[5];
-                    lastItem = item;
-                }
-                
-                // Aggiungi l'ultima riga
-                if (currentLine.trim()) {
-                    lines.push(currentLine.trim());
-                }
-                
-                // Unisci le linee in testo
-                pageText = lines.join('\n');
-                
-                // Applica la pulizia del testo
-                pageText = cleanPageText(pageText, i, numPages);
-                
-                // Memorizza il testo della pagina
-                pageContents.push({
-                    pageNum: i,
-                    content: pageText
-                });
-                
-                // Aggiorna la barra di progresso
-                const progress = (i / numPages) * 100;
-                progressBar.style.width = `${progress}%`;
-            }
-            
-            // Elabora il testo nel suo insieme
-            fullText = processExtractedText(pageContents);
-            
-            // Pulisci il testo completo
-            extractedText = fullText;
-            
-            // Analizza il testo per i metadati e i capitoli
-            analyzeText(extractedText);
-            
-            // Mostra il passo 3
-            goToStep(2);
-            
-            // Abilita il pulsante per procedere
-            proceedToEditBtn.disabled = false;
-            
-        } catch (error) {
-            console.error('Errore nell\'estrazione del testo:', error);
-            showNotification('Si è verificato un errore durante l\'estrazione del testo. ' + error.message, true);
-        } finally {
-            // Nascondi il loader
-            extractSpinner.classList.remove('spinner-visible');
-            extractSpinner.classList.add('spinner-hidden');
-            extractTextBtn.disabled = false;
-        }
-    }
+               const arrayBuffer = await readFileAsArrayBuffer(currentPdfFile);
+               pdfDocument = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+               
+               const numPages = pdfDocument.numPages;
+               let fullText = '';
+               let pageContents = []; // Memorizza il contenuto di ogni pagina separatamente
+               
+               // Estrai il testo da ogni pagina
+               for (let i = 1; i <= numPages; i++) {
+                   const page = await pdfDocument.getPage(i);
+                   const textContent = await page.getTextContent();
+                   
+                   let pageText = '';
+                   let lastY, lastItem;
+                   let currentLine = '';
+                   let lines = [];
+                   
+                   // Combina gli elementi di testo con un'elaborazione migliorata delle linee
+                   for (const item of textContent.items) {
+                       // Se è una nuova riga (coordinata Y diversa)
+                       if (lastY !== undefined && Math.abs(lastY - item.transform[5]) > 1) {
+                           if (currentLine.trim()) {
+                               lines.push(currentLine.trim());
+                           }
+                           currentLine = item.str;
+                       } else {
+                           // Calcola lo spazio tra gli elementi per determinare se è uno spazio reale
+                           if (lastItem) {
+                               const lastTransform = lastItem.transform;
+                               const lastWidth = lastItem.width;
+                               const lastEndX = lastTransform[4] + lastWidth;
+                               const currentStartX = item.transform[4];
+                               const spacingThreshold = 3; // Soglia per determinare uno spazio significativo
+                               
+                               if (currentStartX - lastEndX > spacingThreshold) {
+                                   currentLine += ' ' + item.str;
+                               } else {
+                                   currentLine += item.str;
+                               }
+                           } else {
+                               currentLine += item.str;
+                           }
+                       }
+                       
+                       lastY = item.transform[5];
+                       lastItem = item;
+                   }
+                   
+                   // Aggiungi l'ultima riga
+                   if (currentLine.trim()) {
+                       lines.push(currentLine.trim());
+                   }
+                   
+                   // Unisci le linee in testo
+                   pageText = lines.join('\n');
+                   
+                   // Applica la pulizia del testo
+                   pageText = cleanPageText(pageText, i, numPages);
+                   
+                   // Memorizza il testo della pagina
+                   pageContents.push({
+                       pageNum: i,
+                       content: pageText
+                   });
+                   
+                   // Aggiorna la barra di progresso
+                   const progress = (i / numPages) * 100;
+                   progressBar.style.width = `${progress}%`;
+               }
+               
+               // Elabora il testo nel suo insieme
+               fullText = processExtractedText(pageContents);
+               
+               // Pulisci il testo completo
+               extractedText = fullText;
+               
+               // Analizza il testo per i metadati e i capitoli
+               analyzeText(extractedText);
+               
+               // Mostra il passo 3
+               goToStep(2);
+               
+               // Abilita il pulsante per procedere
+               proceedToEditBtn.disabled = false;
+               
+           } catch (error) {
+               console.error('Errore nell\'estrazione del testo:', error);
+               showNotification('Si è verificato un errore durante l\'estrazione del testo. ' + error.message, true);
+           } finally {
+               // Nascondi il loader
+               extractSpinner.classList.remove('spinner-visible');
+               extractSpinner.classList.add('spinner-hidden');
+               extractTextBtn.disabled = false;
+           }
+       }
 
-    // Elabora il testo estratto applicando tutte le opzioni di pulizia
-    function processExtractedText(pageContents) {
-        let processedText = '';
-        let previousPageEndedWithHyphen = false;
-        let previousPageLastLine = '';
-        
-        for (let i = 0; i < pageContents.length; i++) {
-            let pageText = pageContents[i].content;
-            let pageLines = pageText.split('\n');
-            
-            // Gestisci l'hyphenation fra le pagine
-            if (previousPageEndedWithHyphen && fixHyphenation.checked) {
-                if (pageLines.length > 0 && pageLines[0].trim()) {
-                    // Rimuovi il trattino e unisci con la prima riga della pagina corrente
-                    previousPageLastLine = previousPageLastLine.substring(0, previousPageLastLine.length - 1);
-                    pageLines[0] = previousPageLastLine + pageLines[0];
-                    
-                    // Aggiorna il testo della pagina
-                    pageText = pageLines.join('\n');
-                    
-                    // Se stiamo rimuovendo i page break, dobbiamo aggiornare anche il testo elaborato
-                    if (removePageBreaks.checked) {
-                        // Rimuovi l'ultima riga del testo elaborato finora
-                        processedText = processedText.substring(0, processedText.lastIndexOf('\n'));
-                    }
-                }
-            }
-            
-            // Controlla se l'ultima riga della pagina termina con un trattino
-            if (pageLines.length > 0) {
-                previousPageLastLine = pageLines[pageLines.length - 1];
-                previousPageEndedWithHyphen = previousPageLastLine.endsWith('-');
-            } else {
-                previousPageEndedWithHyphen = false;
-                previousPageLastLine = '';
-            }
-            
-// Aggiungi il testo della pagina al testo elaborato senza interruzioni di pagina
-// (le interruzioni saranno aggiunte solo alla fine dei capitoli)
-processedText += (processedText.endsWith('\n') ? '' : '\n') + pageText;
-            
-        }
-        
-        // Riparazione della sillabazione all'interno delle pagine
-        if (fixHyphenation.checked) {
-            processedText = fixInternalHyphenation(processedText);
-        }
-        
-        // Pulizia finale
-        processedText = cleanExtractedText(processedText);
-        
-        return processedText;
-    }
+       // Elabora il testo estratto applicando tutte le opzioni di pulizia
+       function processExtractedText(pageContents) {
+           let processedText = '';
+           let previousPageEndedWithHyphen = false;
+           let previousPageLastLine = '';
+           
+           for (let i = 0; i < pageContents.length; i++) {
+               let pageText = pageContents[i].content;
+               let pageLines = pageText.split('\n');
+               
+               // Gestisci l'hyphenation fra le pagine
+               if (previousPageEndedWithHyphen && fixHyphenation.checked) {
+                   if (pageLines.length > 0 && pageLines[0].trim()) {
+                       // Rimuovi il trattino e unisci con la prima riga della pagina corrente
+                       previousPageLastLine = previousPageLastLine.substring(0, previousPageLastLine.length - 1);
+                       pageLines[0] = previousPageLastLine + pageLines[0];
+                       
+                       // Aggiorna il testo della pagina
+                       pageText = pageLines.join('\n');
+                       
+                       // Aggiorna anche il testo elaborato
+                       if (processedText.endsWith('-\n')) {
+                           processedText = processedText.substring(0, processedText.length - 2);
+                       }
+                   }
+               }
+               
+               // Controlla se l'ultima riga della pagina termina con un trattino
+               if (pageLines.length > 0) {
+                   previousPageLastLine = pageLines[pageLines.length - 1];
+                   previousPageEndedWithHyphen = previousPageLastLine.endsWith('-');
+               } else {
+                   previousPageEndedWithHyphen = false;
+                   previousPageLastLine = '';
+               }
+               
+               // Gestisci interruzioni di riga intelligenti
+               if (smartLineBreaks.checked) {
+                   pageText = handleSmartLineBreaks(pageText);
+               }
+               
+               // Aggiungi il testo della pagina al testo elaborato
+               // Rimuovi sempre le interruzioni di pagina (verranno aggiunte solo all'inizio dei capitoli tramite CSS)
+               if (i > 0) {
+                   processedText += processedText.endsWith('\n') ? '' : '\n';
+                   processedText += pageText;
+               } else {
+                   processedText = pageText;
+               }
+           }
+           
+           // Riparazione della sillabazione all'interno delle pagine
+           if (fixHyphenation.checked) {
+               processedText = fixInternalHyphenation(processedText);
+           }
+           
+           // Pulizia finale
+           processedText = cleanExtractedText(processedText);
+           
+           return processedText;
+       }
 
-    // Riparazione della sillabazione all'interno di una pagina
-    function fixInternalHyphenation(text) {
-        // Pattern: una riga termina con un trattino e la successiva inizia con una lettera minuscola
-        const hyphenPattern = /(\w+)-\n(\w+)/g;
-        
-        // Sostituisce il pattern unendo le parole sillabate
-        return text.replace(hyphenPattern, (match, part1, part2) => {
-            // Verifica se la seconda parte inizia con una lettera minuscola (probabile continuazione)
-            if (/^[a-zàèìòùáéíóúäëïöüâêîôû]/.test(part2)) {
-                return part1 + part2;
-            }
-            // Altrimenti mantieni il trattino (potrebbe essere un trattino significativo)
-            return part1 + '-\n' + part2;
-        });
-    }
+       // Gestisci interruzioni di riga intelligenti - mantieni solo quelle dopo punteggiatura
+       function handleSmartLineBreaks(text) {
+           const lines = text.split('\n');
+           let result = '';
+           
+           for (let i = 0; i < lines.length; i++) {
+               const line = lines[i].trim();
+               
+               if (i > 0) {
+                   const prevLine = lines[i-1].trim();
+                   
+                   // Mantieni l'interruzione di riga solo se la linea precedente termina con punteggiatura
+                   if (/[.!?:]$/.test(prevLine)) {
+                       result += '\n' + line;
+                   }
+                   // Altrimenti, aggiungi uno spazio tra le righe
+                   else {
+                       // Evita spazi doppi
+                       if (result.endsWith(' ')) {
+                           result += line;
+                       } else {
+                           result += ' ' + line;
+                       }
+                   }
+               } else {
+                   result += line;
+               }
+           }
+           
+           return result;
+       }
 
-    // Pulizia del testo della pagina
-    function cleanPageText(text, pageNum, totalPages) {
-        if (!removePageNumbers.checked && !removeHeadersFooters.checked) {
-            return text;
-        }
-        
-        // Dividi in linee
-        const lines = text.split('\n');
-        
-        // Filtra le linee
-        const filteredLines = lines.filter(line => {
-            // Rimuovi numeri di pagina
-            if (removePageNumbers.checked) {
-                // Numeri di pagina isolati
-                if (/^\s*\d+\s*$/.test(line)) {
-                    return false;
-                }
-                
-                // Numeri di pagina con formati comuni (Pagina X, Page X, X/Y, ecc.)
-                if (/^\s*(Page|Pagina|p\.)\s*\d+\s*$/.test(line) || 
-                    new RegExp(`^\\s*${pageNum}\\s*/\\s*${totalPages}\\s*$`).test(line)) {
-                    return false;
-                }
-            }
-            
-            // Rimuovi intestazioni e piè di pagina
-            if (removeHeadersFooters.checked) {
-                // Considera le prime e ultime righe come potenziali intestazioni/piè di pagina
-                if (lines.length > 3) {
-                    // Se è la prima o l'ultima riga della pagina
-                    if (lines.indexOf(line) === 0 || lines.indexOf(line) === lines.length - 1) {
-                        // Verifica se la riga contiene titoli comuni di capitoli o intestazioni
-                        if (!/^(capitolo|chapter|parte|part|sezione|section)\s+(\d+|[IVXLCDM]+)/i.test(line)) {
-                            // Verifica se la riga contiene solo il titolo del libro
-                            if (bookTitle.value && line.trim() === bookTitle.value.trim()) {
-                                return false;
-                            }
-                            
-                            // Verifica se la riga contiene l'autore
-                            if (bookAuthor.value && line.trim() === bookAuthor.value.trim()) {
-                                return false;
-                            }
-                            
-                            // Verifica se la riga è molto breve (probabile intestazione/piè di pagina)
-                            if (line.trim().length < 30) {
-                                return false;
-                            }
-                        }
-                    }
-                }
-            }
-            
-            return true;
-        });
-        
-        return filteredLines.join('\n');
-    }
+       // Riparazione della sillabazione all'interno di una pagina
+       function fixInternalHyphenation(text) {
+           // Pattern: una riga termina con un trattino e la successiva inizia con una lettera minuscola
+           const hyphenPattern = /(\w+)-\n(\w+)/g;
+           
+           // Sostituisce il pattern unendo le parole sillabate
+           return text.replace(hyphenPattern, (match, part1, part2) => {
+               // Verifica se la seconda parte inizia con una lettera minuscola (probabile continuazione)
+               if (/^[a-zàèìòùáéíóúäëïöüâêîôû]/.test(part2)) {
+                   return part1 + part2;
+               }
+               // Altrimenti mantieni il trattino (potrebbe essere un trattino significativo)
+               return part1 + '-\n' + part2;
+           });
+       }
 
-    // Pulizia del testo estratto completo
-    function cleanExtractedText(text) {
-        // Rimuovi spazi bianchi multipli
-        let cleanText = text.replace(/ {2,}/g, ' ');
-        
-        // Rimuovi interruzioni di riga ripetute (più di 2)
-        cleanText = cleanText.replace(/\n{3,}/g, '\n\n');
-        
-        // Rimuovi spazi all'inizio e alla fine
-        cleanText = cleanText.trim();
-        
-        return cleanText;
-    }
+       // Pulizia del testo della pagina
+       function cleanPageText(text, pageNum, totalPages) {
+           if (!removePageNumbers.checked && !removeHeadersFooters.checked) {
+               return text;
+           }
+           
+           // Dividi in linee
+           const lines = text.split('\n');
+           
+           // Filtra le linee
+           const filteredLines = lines.filter(line => {
+               // Rimuovi numeri di pagina
+               if (removePageNumbers.checked) {
+                   // Numeri di pagina isolati
+                   if (/^\s*\d+\s*$/.test(line)) {
+                       return false;
+                   }
+                   
+                   // Numeri di pagina con formati comuni (Pagina X, Page X, X/Y, ecc.)
+                   if (/^\s*(Page|Pagina|p\.)\s*\d+\s*$/.test(line) || 
+                       new RegExp(`^\\s*${pageNum}\\s*/\\s*${totalPages}\\s*$`).test(line)) {
+                       return false;
+                   }
+               }
+               
+               // Rimuovi intestazioni e piè di pagina
+               if (removeHeadersFooters.checked) {
+                   // Considera le prime e ultime righe come potenziali intestazioni/piè di pagina
+                   if (lines.length > 3) {
+                       // Se è la prima o l'ultima riga della pagina
+                       if (lines.indexOf(line) === 0 || lines.indexOf(line) === lines.length - 1) {
+                           // Verifica se la riga contiene titoli comuni di capitoli o intestazioni
+                           if (!/^(capitolo|chapter|parte|part|sezione|section)\s+(\d+|[IVXLCDM]+)/i.test(line)) {
+                               // Verifica se la riga contiene solo il titolo del libro
+                               if (bookTitle.value && line.trim() === bookTitle.value.trim()) {
+                                   return false;
+                               }
+                               
+                               // Verifica se la riga contiene l'autore
+                               if (bookAuthor.value && line.trim() === bookAuthor.value.trim()) {
+                                   return false;
+                               }
+                               
+                               // Verifica se la riga è molto breve (probabile intestazione/piè di pagina)
+                               if (line.trim().length < 30) {
+                                   return false;
+                               }
+                           }
+                       }
+                   }
+               }
+               
+               return true;
+           });
+           
+           return filteredLines.join('\n');
+       }
 
-    // Analisi del testo per rilevare metadati e capitoli
-    function analyzeText(text) {
-        // Rileva il titolo e l'autore dal testo
-    if (detectSpecialSections.checked) {
-        detectFrontMatterSections(text);
-    }
-        
-   // Rileva capitoli se richiesto
-    if (detectChapters.checked) {
-        detectChaptersInText(text);
-    } else {
-        // Altrimenti crea un capitolo unico con tutto il testo
-        chapters = [{
-            title: 'Intero documento',
-            startPosition: 0,
-            content: text,
-            type: 'normal'
-        }];
-    }
-    
-    // Aggiorna l'UI con i capitoli
-    updateChaptersList();
-}
+       // Pulizia del testo estratto completo
+       function cleanExtractedText(text) {
+           // Rimuovi spazi bianchi multipli
+           let cleanText = text.replace(/ {2,}/g, ' ');
+           
+           // Rimuovi interruzioni di riga ripetute (più di 2)
+           cleanText = cleanText.replace(/\n{3,}/g, '\n\n');
+           
+           // Rimuovi spazi all'inizio e alla fine
+           cleanText = cleanText.trim();
+           
+           return cleanText;
+       }
 
-    // Rileva elementi del frontmatter (titolo, autore, colophon, ecc.)
-// Funzione migliorata per rilevare sezioni nel frontmatter
-function detectFrontMatterSections(text) {
-    // Rileva il titolo del libro
-    const titlePattern = /^\s*([A-Z][A-ZÀÈÌÒÙ\s',;:.]{4,60})\s*\n/m;
-    const titleMatch = text.match(titlePattern);
-    if (titleMatch && titleMatch.index < 500) {
-        const title = titleMatch[1].trim();
-        if (!bookTitle.value) {
-            bookTitle.value = title;
-        }
-        
-        chapters.push({
-            title: 'Titolo',
-            startPosition: titleMatch.index,
-            content: title,
-            type: 'title'
-        });
-    }
-    
-    // Rileva dediche
-    const dedicationPattern = /^\s*(A|To|Dedicato a|Dedicated to)\s+([A-Za-z][a-zA-Zàèìòùé'\s,.]+)$/m;
-    const dedicationMatch = text.match(dedicationPattern);
-    if (dedicationMatch) {
-        const dedicationPos = text.indexOf(dedicationMatch[0]);
-        if (dedicationPos > -1) {
-            let dedicationEnd = text.indexOf('\n\n', dedicationPos);
-            if (dedicationEnd === -1) dedicationEnd = text.indexOf('\n', dedicationPos + dedicationMatch[0].length);
-            if (dedicationEnd === -1) dedicationEnd = dedicationPos + dedicationMatch[0].length;
-            
-            const dedication = text.substring(dedicationPos, dedicationEnd).trim();
-            
-            chapters.push({
-                title: 'Dedica',
-                startPosition: dedicationPos,
-                content: dedication,
-                type: 'dedication'
-            });
-        }
-    }
-    
-    // Rileva colophon
-    const colophonPattern = /(ISBN|edizione|editore|copyright|pubblicato da|printed by|©).*?([0-9]{4})/i;
-    const colophonMatch = text.match(colophonPattern);
-    if (colophonMatch) {
-        const colophonPos = text.indexOf(colophonMatch[0]);
-        if (colophonPos > -1) {
-            let colophonStart = text.lastIndexOf('\n\n', colophonPos);
-            if (colophonStart === -1) colophonStart = text.lastIndexOf('\n', colophonPos);
-            if (colophonStart === -1) colophonStart = colophonPos;
-            
-            let colophonEnd = text.indexOf('\n\n', colophonPos);
-            if (colophonEnd === -1) colophonEnd = text.indexOf('\n', colophonPos + colophonMatch[0].length);
-            if (colophonEnd === -1) colophonEnd = colophonPos + colophonMatch[0].length + 100;
-            colophonEnd = Math.min(colophonEnd, text.length);
-            
-            const colophon = text.substring(colophonStart, colophonEnd).trim();
-            
-            chapters.push({
-                title: 'Colophon',
-                startPosition: colophonStart,
-                content: colophon,
-                type: 'colophon'
-            });
-        }
-    }
-    
-    // Rileva citazioni
-    const quotePattern = /^[\s>"].*?["—][\s\n]+—\s*[A-Z][a-zA-Zàèìòùé'\s,.]+$/m;
-    const quoteMatch = text.match(quotePattern);
-    if (quoteMatch) {
-        const quotePos = text.indexOf(quoteMatch[0]);
-        if (quotePos > -1) {
-            let quoteStart = text.lastIndexOf('\n\n', quotePos);
-            if (quoteStart === -1) quoteStart = text.lastIndexOf('\n', quotePos);
-            if (quoteStart === -1) quoteStart = quotePos;
-            
-            let quoteEnd = text.indexOf('\n\n', quotePos);
-            if (quoteEnd === -1) quoteEnd = text.indexOf('\n', quotePos + quoteMatch[0].length);
-            if (quoteEnd === -1) quoteEnd = quotePos + quoteMatch[0].length;
-            
-            const quote = text.substring(quoteStart, quoteEnd).trim();
-            
-            chapters.push({
-                title: 'Citazione',
-                startPosition: quoteStart,
-                content: quote,
-                type: 'quote'
-            });
-        }
-    }
-}
+       // Analisi del testo per rilevare metadati e capitoli
+       function analyzeText(text) {
+           // Rileva il titolo e l'autore dal testo
+           if (detectSpecialSections.checked) {
+               detectFrontMatterSections(text);
+           }
+           
+           // Rileva capitoli se richiesto
+           if (detectChapters.checked) {
+               detectChaptersInText(text);
+           } else {
+               // Altrimenti crea un capitolo unico con tutto il testo
+               chapters = [{
+                   title: 'Intero documento',
+                   startPosition: 0,
+                   content: text,
+                   type: 'normal'
+               }];
+           }
+           
+           // Aggiorna l'UI con i capitoli
+           updateChaptersList();
+       }
 
-function detectChaptersInText(text) {
-    // Inizia con un array vuoto (le sezioni speciali potrebbero essere già state aggiunte)
-    if (chapters.length === 0) {
-        chapters = [];
-    }
-    
-    // Pattern migliorati per rilevare i titoli dei capitoli
-    const chapterPatterns = [
-        // Pattern espliciti per capitoli numerati (case-insensitive)
-        /\n\s*(Capitolo|Chapter|Cap\.|CAPITOLO)\s+(\d+|[IVXLCDM]+)[\s:.-]*(.*)?\n/gi,
-        
-        // Pattern per parti o sezioni
-        /\n\s*(Parte|Part|Sezione|Section|PARTE|PART)\s+(\d+|[IVXLCDM]+)[\s:.-]*(.*)?\n/gi,
-        
-        // Pattern per capitoli con solo numeri o numeri romani
-        /\n\s*(\d+|[IVXLCDM]+)[\s:.-][\s]*(.*)?\n/gi,
-        
-        // Pattern per titoli formattati (caratteri non alfanumerici prima/dopo o tutto maiuscolo)
-        /\n\s*[*_#]{1,3}\s*([A-Z][^.\n]{5,60})[*_#]{0,3}\s*\n/g,
-        
-        // Pattern per titoli in maiuscolo isolati
-        /\n\s*([A-ZÀÈÌÒÙ][A-ZÀÈÌÒÙ\s',;:.]{4,60})\s*\n/g,
-        
-        // Pattern per titoli con numeri (es. "1. Introduzione")
-        /\n\s*(\d+[\.\)]+)\s+([A-Z][a-zàèìòùáéíóú\s',;:.]{4,60})\s*\n/g,
-        
-        // Pattern per titoli semplici (riga breve che inizia con maiuscola seguita da riga vuota)
-        /\n\s*([A-Z][a-zA-Z\s',;:.]{5,50})\s*\n\s*\n/g
-    ];
-    
-    // Cerca match per ogni pattern
-    let matches = [];
-    
-    for (const pattern of chapterPatterns) {
-        let match;
-        while ((match = pattern.exec(text)) !== null) {
-            // Estrai il titolo del capitolo
-            let chapterTitle;
-            
-            // Diversi gruppi di cattura in base al pattern
-            if (match[3]) {
-                // Pattern tipo "Capitolo 1: Titolo"
-                chapterTitle = `${match[1]} ${match[2]}: ${match[3].trim()}`;
-            } else if (match[2] && match[1].match(/^\d+[\.\)]$/)) {
-                // Pattern tipo "1. Titolo"
-                chapterTitle = match[2].trim();
-            } else if (match[2]) {
-                // Pattern tipo "Capitolo 1" con titolo o "1. Titolo"
-                chapterTitle = `${match[1]} ${match[2].trim()}`;
-            } else {
-                // Pattern con solo il titolo
-                chapterTitle = match[1].trim();
-            }
-            
-            // Memorizza la posizione dell'inizio del capitolo
-            matches.push({
-                title: chapterTitle,
-                startPosition: match.index,
-                rawMatch: match[0],  // Salva il testo del match per analisi e pulizia
-                type: 'chapter'
-            });
-        }
-    }
-    
-    // Aggiungi un pattern per rilevare il testo prima di qualsiasi capitolo (frontmatter)
-    if (matches.length > 0 && matches[0].startPosition > 100) {
-        // C'è del testo significativo prima del primo capitolo
-        const frontMatterText = text.substring(0, matches[0].startPosition);
-        
-        // Dividi il frontmatter in sezioni logiche
-        detectFrontMatterSections(frontMatterText);
-    }
-    
-    // Ordina i match per posizione
-    matches.sort((a, b) => a.startPosition - b.startPosition);
-    
-    // Rimuovi i duplicati e i falsi positivi
-    matches = cleanupChapterMatches(matches, text);
-    
-    // Crea i capitoli
-    if (matches.length > 0) {
-        for (let i = 0; i < matches.length; i++) {
-            const startPos = matches[i].startPosition;
-            const endPos = (i < matches.length - 1) ? matches[i+1].startPosition : text.length;
-            
-            // Ottieni il contenuto del capitolo escluso il titolo
-            const titleLength = matches[i].rawMatch.length;
-            const chapterContent = text.substring(startPos + titleLength, endPos).trim();
-            
-            chapters.push({
-                title: matches[i].title,
-                rawTitle: matches[i].rawMatch.trim(),
-                startPosition: startPos,
-                content: chapterContent,
-                type: 'chapter'
-            });
-        }
-    } else if (chapters.length === 0) {
-        // Se non sono stati rilevati capitoli e non ci sono altre sezioni, crea un unico capitolo
-        chapters = [{
-            title: 'Intero documento',
-            startPosition: 0,
-            content: text,
-            type: 'normal'
-        }];
-    }
-    
-    // Ordina tutti i capitoli e le sezioni per posizione
-    chapters.sort((a, b) => a.startPosition - b.startPosition);
-}
+       // Rileva elementi del frontmatter (titolo, autore, colophon, ecc.)
+       function detectFrontMatterSections(text) {
+           // Rileva il titolo del libro
+           const titlePattern = /^\s*([A-Z][A-ZÀÈÌÒÙ\s',;:.]{4,60})\s*\n/m;
+           const titleMatch = text.match(titlePattern);
+           if (titleMatch && titleMatch.index < 500) {
+               const title = titleMatch[1].trim();
+               if (!bookTitle.value) {
+                   bookTitle.value = title;
+               }
+               
+               chapters.push({
+                   title: 'Titolo',
+                   startPosition: titleMatch.index,
+                   content: title,
+                   type: 'title'
+               });
+           }
+           
+           // Rileva dediche
+           const dedicationPattern = /^\s*(A|To|Dedicato a|Dedicated to)\s+([A-Za-z][a-zA-Zàèìòùé'\s,.]+)$/m;
+           const dedicationMatch = text.match(dedicationPattern);
+           if (dedicationMatch) {
+               const dedicationPos = text.indexOf(dedicationMatch[0]);
+               if (dedicationPos > -1) {
+                   let dedicationEnd = text.indexOf('\n\n', dedicationPos);
+                   if (dedicationEnd === -1) dedicationEnd = text.indexOf('\n', dedicationPos + dedicationMatch[0].length);
+                   if (dedicationEnd === -1) dedicationEnd = dedicationPos + dedicationMatch[0].length;
+                   
+                   const dedication = text.substring(dedicationPos, dedicationEnd).trim();
+                   
+                   chapters.push({
+                       title: 'Dedica',
+                       startPosition: dedicationPos,
+                       content: dedication,
+                       type: 'dedication'
+                   });
+               }
+           }
+           
+           // Rileva colophon
+           const colophonPattern = /(ISBN|edizione|editore|copyright|pubblicato da|printed by|©).*?([0-9]{4})/i;
+           const colophonMatch = text.match(colophonPattern);
+           if (colophonMatch) {
+               const colophonPos = text.indexOf(colophonMatch[0]);
+               if (colophonPos > -1) {
+                   let colophonStart = text.lastIndexOf('\n\n', colophonPos);
+                   if (colophonStart === -1) colophonStart = text.lastIndexOf('\n', colophonPos);
+                   if (colophonStart === -1) colophonStart = colophonPos;
+                   
+                   let colophonEnd = text.indexOf('\n\n', colophonPos);
+                   if (colophonEnd === -1) colophonEnd = text.indexOf('\n', colophonPos + colophonMatch[0].length);
+                   if (colophonEnd === -1) colophonEnd = colophonPos + colophonMatch[0].length + 100;
+                   colophonEnd = Math.min(colophonEnd, text.length);
+                   
+                   const colophon = text.substring(colophonStart, colophonEnd).trim();
+                   
+                   chapters.push({
+                       title: 'Colophon',
+                       startPosition: colophonStart,
+                       content: colophon,
+                       type: 'colophon'
+                   });
+               }
+           }
+           
+           // Rileva citazioni
+           const quotePattern = /^[\s>"].*?["—][\s\n]+—\s*[A-Z][a-zA-Zàèìòùé'\s,.]+$/m;
+           const quoteMatch = text.match(quotePattern);
+           if (quoteMatch) {
+               const quotePos = text.indexOf(quoteMatch[0]);
+               if (quotePos > -1) {
+                   let quoteStart = text.lastIndexOf('\n\n', quotePos);
+                   if (quoteStart === -1) quoteStart = text.lastIndexOf('\n', quotePos);
+                   if (quoteStart === -1) quoteStart = quotePos;
+                   
+                   let quoteEnd = text.indexOf('\n\n', quotePos);
+                   if (quoteEnd === -1) quoteEnd = text.indexOf('\n', quotePos + quoteMatch[0].length);
+                   if (quoteEnd === -1) quoteEnd = quotePos + quoteMatch[0].length;
+                   
+                   const quote = text.substring(quoteStart, quoteEnd).trim();
+                   
+                   chapters.push({
+                       title: 'Citazione',
+                       startPosition: quoteStart,
+                       content: quote,
+                       type: 'quote'
+                   });
+               }
+           }
+       }
 
-        // Funzione per rimuovere falsi positivi e combinare capitoli duplicati
-function cleanupChapterMatches(matches, fullText) {
-    if (matches.length <= 1) return matches;
-    
-    const cleanMatches = [];
-    
-    for (let i = 0; i < matches.length; i++) {
-        // Calcola la distanza dal match precedente e successivo
-        const prevDistance = i > 0 ? matches[i].startPosition - matches[i-1].startPosition : Infinity;
-        const nextDistance = i < matches.length - 1 ? matches[i+1].startPosition - matches[i].startPosition : Infinity;
-        
-        // Se il titolo è molto vicino a un altro, potrebbe essere un falso positivo o parte dello stesso titolo
-        if (prevDistance < 50) {
-            // Probabilmente parte dello stesso titolo o falso positivo
-            continue;
-        }
-        
-        // Verifica se il titolo è isolato (non fa parte del testo corrente)
-        const surroundingText = fullText.substring(
-            Math.max(0, matches[i].startPosition - 50),
-            Math.min(fullText.length, matches[i].startPosition + matches[i].rawMatch.length + 50)
-        );
-        
-        // Se il titolo è circondato da troppo testo simile, potrebbe essere un falso positivo
-        const isTitleIsolated = /\n\s*\n/.test(surroundingText.substring(0, 50)) || 
-                                matches[i].startPosition < 50;
-        
-        if (!isTitleIsolated && matches[i].title.length < 15) {
-            // Probabilmente un falso positivo (titolo troppo breve non isolato)
-            continue;
-        }
-        
-        // Verifica se il titolo è seguito da contenuto sufficiente
-        const contentLength = i < matches.length - 1 
-            ? matches[i+1].startPosition - (matches[i].startPosition + matches[i].rawMatch.length)
-            : fullText.length - (matches[i].startPosition + matches[i].rawMatch.length);
-        
-        if (contentLength < 200 && i < matches.length - 1) {
-            // Probabilmente un'intestazione invece di un capitolo vero
-            continue;
-        }
-        
-        // Questo sembra un titolo di capitolo valido
-        cleanMatches.push(matches[i]);
-    }
-    
-    return cleanMatches;
-}
-    // Aggiorna la lista dei capitoli nell'UI
-    function updateChaptersList() {
-        // Svuota la lista
-        chaptersList.innerHTML = '';
-        
-        // Aggiungi ciascun capitolo
-        chapters.forEach((chapter, index) => {
-            const chapterItem = document.createElement('div');
-            chapterItem.className = 'chapter-item';
-            
-            // Aggiungi un'icona o un indicatore per il tipo di sezione
-            let typeIndicator = '';
-            switch(chapter.type) {
-                case 'chapter': typeIndicator = '📕 '; break;
-                case 'title': typeIndicator = '📑 '; break;
-                case 'colophon': typeIndicator = '©️ '; break;
-                case 'dedication': typeIndicator = '❤️ '; break;
-                case 'quote': typeIndicator = '💬 '; break;
-                default: typeIndicator = '📄 ';
-            }
-            
-            chapterItem.innerHTML = `
-                <div>${typeIndicator}${index + 1}. ${chapter.title}</div>
-                <div class="chapter-actions">
-                    <button class="small-button" data-action="edit" data-index="${index}">Modifica</button>
-                    <button class="small-button" data-action="delete" data-index="${index}">Elimina</button>
-                </div>
-            `;
-            chaptersList.appendChild(chapterItem);
-            
-            // Aggiungi event listeners
-            const editBtn = chapterItem.querySelector('[data-action="edit"]');
-            const deleteBtn = chapterItem.querySelector('[data-action="delete"]');
-            
-            editBtn.addEventListener('click', () => openEditChapterModal(index));
-            deleteBtn.addEventListener('click', () => deleteChapter(index));
-        });
-        
-        // Aggiorna anche il selettore dei capitoli
-        updateChapterSelect();
-    }
+       // Rilevamento dei capitoli nel testo
+       function detectChaptersInText(text) {
+           // Inizia con un array vuoto (le sezioni speciali potrebbero essere già state aggiunte)
+           if (chapters.length === 0) {
+               chapters = [];
+           }
+           
+           // Pattern migliorati per rilevare i titoli dei capitoli
+           const chapterPatterns = [
+               // Pattern espliciti per capitoli numerati (case-insensitive)
+               /\n\s*(Capitolo|Chapter|Cap\.|CAPITOLO)\s+(\d+|[IVXLCDM]+)[\s:.-]*(.*)?\n/gi,
+               
+               // Pattern per parti o sezioni
+               /\n\s*(Parte|Part|Sezione|Section|PARTE|PART)\s+(\d+|[IVXLCDM]+)[\s:.-]*(.*)?\n/gi,
+               
+               // Pattern per capitoli con solo numeri o numeri romani
+               /\n\s*(\d+|[IVXLCDM]+)[\s:.-][\s]*(.*)?\n/gi,
+               
+               // Pattern per titoli formattati (caratteri non alfanumerici prima/dopo o tutto maiuscolo)
+               /\n\s*[*_#]{1,3}\s*([A-Z][^.\n]{5,60})[*_#]{0,3}\s*\n/g,
+               
+               // Pattern per titoli in maiuscolo isolati (con almeno una riga vuota prima o dopo)
+               /\n\s*\n\s*([A-ZÀÈÌÒÙ][A-ZÀÈÌÒÙ\s',;:.]{4,60})\s*\n/g,
+               
+               // Pattern per titoli con numeri (es. "1. Introduzione")
+               /\n\s*(\d+[\.\)]+)\s+([A-Z][a-zàèìòùáéíóú\s',;:.]{4,60})\s*\n/g,
+               
+               // Pattern per titoli centrati (circa a metà di una pagina con spazio bianco sopra e sotto)
+               /\n\s*\n\s*\n\s*([A-Z][a-zA-Z\s',;:.]{5,50})\s*\n\s*\n/g
+           ];
+           
+           // Cerca match per ogni pattern
+           let matches = [];
+           
+           for (const pattern of chapterPatterns) {
+               let match;
+               while ((match = pattern.exec(text)) !== null) {
+                   // Estrai il titolo del capitolo
+                   let chapterTitle;
+                   
+                   // Diversi gruppi di cattura in base al pattern
+                   if (match[3]) {
+                       // Pattern tipo "Capitolo 1: Titolo"
+                       chapterTitle = `${match[1]} ${match[2]}: ${match[3].trim()}`;
+                   } else if (match[2] && match[1].match(/^\d+[\.\)]$/)) {
+                       // Pattern tipo "1. Titolo"
+                       chapterTitle = match[2].trim();
+                   } else if (match[2]) {
+                       // Pattern tipo "Capitolo 1" con titolo o "1. Titolo"
+                       chapterTitle = `${match[1]} ${match[2].trim()}`;
+                   } else {
+                       // Pattern con solo il titolo
+                       chapterTitle = match[1].trim();
+                   }
+                   
+                   // Memorizza la posizione dell'inizio del capitolo
+                   matches.push({
+                       title: chapterTitle,
+                       startPosition: match.index,
+                       rawMatch: match[0],  // Salva il testo del match per analisi e pulizia
+                       type: 'chapter'
+                   });
+               }
+           }
+           
+           // Aggiungi un pattern per rilevare il testo prima di qualsiasi capitolo (frontmatter)
+           if (matches.length > 0 && matches[0].startPosition > 100) {
+               // C'è del testo significativo prima del primo capitolo
+               const frontMatterText = text.substring(0, matches[0].startPosition);
+               
+               // Dividi il frontmatter in sezioni logiche
+               detectFrontMatterSections(frontMatterText);
+           }
+           
+           // Ordina i match per posizione
+           matches.sort((a, b) => a.startPosition - b.startPosition);
+           
+           // Rimuovi i duplicati e i falsi positivi
+           matches = cleanupChapterMatches(matches, text);
+           
+           // Crea i capitoli
+           if (matches.length > 0) {
+               for (let i = 0; i < matches.length; i++) {
+                   const startPos = matches[i].startPosition;
+                   const endPos = (i < matches.length - 1) ? matches[i+1].startPosition : text.length;
+                   
+                   // Ottieni il contenuto del capitolo escluso il titolo
+                   const titleLength = matches[i].rawMatch.length;
+                   const chapterContent = text.substring(startPos + titleLength, endPos).trim();
+                   
+                   chapters.push({
+                       title: matches[i].title,
+                       rawTitle: matches[i].rawMatch.trim(),
+                       startPosition: startPos,
+                       content: chapterContent,
+                       type: 'chapter'
+                   });
+               }
+           } else if (chapters.length === 0) {
+               // Se non sono stati rilevati capitoli e non ci sono altre sezioni, crea un unico capitolo
+               chapters = [{
+                   title: 'Intero documento',
+                   startPosition: 0,
+                   content: text,
+                   type: 'normal'
+               }];
+           }
+           
+           // Ordina tutti i capitoli e le sezioni per posizione
+           chapters.sort((a, b) => a.startPosition - b.startPosition);
+       }
 
-    // Aggiorna il selettore dei capitoli
-    function updateChapterSelect() {
-        chapterSelect.innerHTML = '';
-        
-        chapters.forEach((chapter, index) => {
-            const option = document.createElement('option');
-            option.value = index;
-            
-            // Aggiungi un'icona o un indicatore per il tipo di sezione
-            let typeIndicator = '';
-            switch(chapter.type) {
-                case 'chapter': typeIndicator = '📕 '; break;
-                case 'title': typeIndicator = '📑 '; break;
-                case 'colophon': typeIndicator = '©️ '; break;
-                case 'dedication': typeIndicator = '❤️ '; break;
-                case 'quote': typeIndicator = '💬 '; break;
-                default: typeIndicator = '📄 ';
-            }
-            
-            option.textContent = `${typeIndicator}${index + 1}. ${chapter.title}`;
-            chapterSelect.appendChild(option);
-        });
-        
-        // Carica il contenuto del primo capitolo se disponibile
-        if (chapters.length > 0) {
-            loadChapterContent();
-        }
-    }
+       // Funzione per rimuovere falsi positivi e combinare capitoli duplicati
+       function cleanupChapterMatches(matches, fullText) {
+           if (matches.length <= 1) return matches;
+           
+           const cleanMatches = [];
+           
+           for (let i = 0; i < matches.length; i++) {
+               // Calcola la distanza dal match precedente e successivo
+               const prevDistance = i > 0 ? matches[i].startPosition - matches[i-1].startPosition : Infinity;
+               const nextDistance = i < matches.length - 1 ? matches[i+1].startPosition - matches[i].startPosition : Infinity;
+               
+               // Se il titolo è molto vicino a un altro, potrebbe essere un falso positivo o parte dello stesso titolo
+               if (prevDistance < 50) {
+                   // Probabilmente parte dello stesso titolo o falso positivo
+                   continue;
+               }
+               
+               // Verifica se il titolo è isolato (non fa parte del testo corrente)
+               const surroundingText = fullText.substring(
+                   Math.max(0, matches[i].startPosition - 50),
+                   Math.min(fullText.length, matches[i].startPosition + matches[i].rawMatch.length + 50)
+               );
+               
+               // Verifica se il titolo è seguito da contenuto sufficiente
+               const contentLength = i < matches.length - 1 
+                   ? matches[i+1].startPosition - (matches[i].startPosition + matches[i].rawMatch.length)
+                   : fullText.length - (matches[i].startPosition + matches[i].rawMatch.length);
+               
+               // Verifica se il titolo è isolato con spazio bianco attorno
+               const hasWhitespaceBefore = /\n\s*\n/.test(surroundingText.substring(0, 50));
+               const hasWhitespaceAfter = /\n\s*\n/.test(surroundingText.substring(matches[i].rawMatch.length));
+               
+               // Un vero titolo di capitolo dovrebbe avere spazio bianco prima o dopo
+               // e dovrebbe avere contenuto significativo
+               if ((hasWhitespaceBefore || hasWhitespaceAfter) && contentLength > 200) {
+                   // Questo sembra un titolo di capitolo valido
+                   cleanMatches.push(matches[i]);
+               }
+               // Caso speciale per l'inizio del documento
+               else if (matches[i].startPosition < 100 && contentLength > 300) {
+                   cleanMatches.push(matches[i]);
+               }
+           }
+           
+           return cleanMatches;
+       }
 
-    // Carica il contenuto del capitolo selezionato nell'editor
-    function loadChapterContent() {
-        const selectedIndex = parseInt(chapterSelect.value);
-        if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= chapters.length) return;
-        
-        const chapter = chapters[selectedIndex];
-        
-        // Imposta il tipo di contenuto nei radio button
-        const contentTypeRadio = document.querySelector(`input[value="${chapter.type}"]`);
-        if (contentTypeRadio) {
-            contentTypeRadio.checked = true;
-        } else {
-            document.querySelector('input[value="normal"]').checked = true;
-        }
-        
-        textEditor.value = chapter.content;
-        saveTextBtn.disabled = false;
-    }
+       // Aggiorna la lista dei capitoli nell'UI
+       function updateChaptersList() {
+           // Svuota la lista
+           chaptersList.innerHTML = '';
+           
+           // Aggiungi ciascun capitolo
+           chapters.forEach((chapter, index) => {
+               const chapterItem = document.createElement('div');
+               chapterItem.className = 'chapter-item';
+               
+               // Aggiungi un'icona o un indicatore per il tipo di sezione
+               let typeIndicator = '';
+               switch(chapter.type) {
+                   case 'chapter': typeIndicator = '📕 '; break;
+                   case 'title': typeIndicator = '📑 '; break;
+                   case 'colophon': typeIndicator = '©️ '; break;
+                   case 'dedication': typeIndicator = '❤️ '; break;
+                   case 'quote': typeIndicator = '💬 '; break;
+                   default: typeIndicator = '📄 ';
+               }
+               
+               chapterItem.innerHTML = `
+                   <div>${typeIndicator}${index + 1}. ${chapter.title}</div>
+                   <div class="chapter-actions">
+                       <button class="small-button" data-action="edit" data-index="${index}">Modifica</button>
+                       <button class="small-button" data-action="delete" data-index="${index}">Elimina</button>
+                   </div>
+               `;
+               chaptersList.appendChild(chapterItem);
+               
+               // Aggiungi event listeners
+               const editBtn = chapterItem.querySelector('[data-action="edit"]');
+               const deleteBtn = chapterItem.querySelector('[data-action="delete"]');
+               
+               editBtn.addEventListener('click', () => openEditChapterModal(index));
+               deleteBtn.addEventListener('click', () => deleteChapter(index));
+           });
+           
+           // Aggiorna anche il selettore dei capitoli
+           updateChapterSelect();
+       }
 
-    // Aggiorna il tipo di contenuto del capitolo corrente
-    function updateContentType(type) {
-        const selectedIndex = parseInt(chapterSelect.value);
-        if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= chapters.length) return;
-        
-        chapters[selectedIndex].type = type;
-        updateChaptersList();
-    }
+       // Aggiorna il selettore dei capitoli
+       function updateChapterSelect() {
+           chapterSelect.innerHTML = '';
+           
+           chapters.forEach((chapter, index) => {
+               const option = document.createElement('option');
+               option.value = index;
+               
+               // Aggiungi un'icona o un indicatore per il tipo di sezione
+               let typeIndicator = '';
+               switch(chapter.type) {
+                   case 'chapter': typeIndicator = '📕 '; break;
+                   case 'title': typeIndicator = '📑 '; break;
+                   case 'colophon': typeIndicator = '©️ '; break;
+                   case 'dedication': typeIndicator = '❤️ '; break;
+                   case 'quote': typeIndicator = '💬 '; break;
+                   default: typeIndicator = '📄 ';
+               }
+               
+               option.textContent = `${typeIndicator}${index + 1}. ${chapter.title}`;
+               chapterSelect.appendChild(option);
+           });
+           
+           // Carica il contenuto del primo capitolo se disponibile
+           if (chapters.length > 0) {
+               loadChapterContent();
+           }
+       }
 
-    // Aggiungi un nuovo capitolo
-    function addNewChapter() {
-        currentEditingChapterIndex = -1;
-        chapterTitle.value = '';
-        chapterStartPosition.value = extractedText.length;
-        sectionType.value = 'normal';
-        openModal();
-    }
+       // Carica il contenuto del capitolo selezionato nell'editor
+       function loadChapterContent() {
+           const selectedIndex = parseInt(chapterSelect.value);
+           if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= chapters.length) return;
+           
+           const chapter = chapters[selectedIndex];
+           
+           // Imposta il tipo di contenuto nei radio button
+           const contentTypeRadio = document.querySelector(`input[value="${chapter.type}"]`);
+           if (contentTypeRadio) {
+               contentTypeRadio.checked = true;
+           } else {
+               document.querySelector('input[value="normal"]').checked = true;
+           }
+           
+           textEditor.value = chapter.content;
+           saveTextBtn.disabled = false;
+       }
 
-    // Apri il modal per modificare un capitolo
-    function openEditChapterModal(index) {
-        currentEditingChapterIndex = index;
-        const chapter = chapters[index];
-        
-        chapterTitle.value = chapter.title;
-        chapterStartPosition.value = chapter.startPosition;
-        sectionType.value = chapter.type || 'normal';
-        
-        openModal();
-    }
+       // Aggiorna il tipo di contenuto del capitolo corrente
+       function updateContentType(type) {
+           const selectedIndex = parseInt(chapterSelect.value);
+           if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= chapters.length) return;
+           
+           chapters[selectedIndex].type = type;
+           updateChaptersList();
+       }
 
-    // Salva le modifiche al capitolo
-    function saveChapterChanges() {
-        const title = chapterTitle.value.trim();
-        const startPos = parseInt(chapterStartPosition.value);
-        const type = sectionType.value;
-        
-        if (!title) {
-            showNotification('Inserisci un titolo per la sezione.', true);
-            return;
-        }
-        
-        if (isNaN(startPos) || startPos < 0 || startPos >= extractedText.length) {
-            showNotification('Posizione di inizio non valida.', true);
-            return;
-        }
-        
-        if (currentEditingChapterIndex === -1) {
-            // Nuovo capitolo
-            const newChapter = {
-                title: title,
-                startPosition: startPos,
-                content: extractedText.substring(startPos).trim(),
-                type: type
-            };
-            
-            chapters.push(newChapter);
-            
-            // Aggiorna i capitoli esistenti
-            updateChapterBoundaries();
-        } else {
-            // Modifica di un capitolo esistente
-            chapters[currentEditingChapterIndex].title = title;
-            chapters[currentEditingChapterIndex].startPosition = startPos;
-            chapters[currentEditingChapterIndex].type = type;
-            
-            // Aggiorna il contenuto in base alla nuova posizione
-            updateChapterBoundaries();
-        }
-        
-        // Aggiorna l'UI
-        updateChaptersList();
-        
-        // Chiudi il modal
-        closeModal();
-    }
+       // Aggiungi un nuovo capitolo
+       function addNewChapter() {
+           currentEditingChapterIndex = -1;
+           chapterTitle.value = '';
+           chapterStartPosition.value = extractedText.length;
+           sectionType.value = 'normal';
+           openModal();
+       }
 
-    // Aggiorna i confini dei capitoli dopo modifiche
-    function updateChapterBoundaries() {
-        // Ordina i capitoli per posizione
-        chapters.sort((a, b) => a.startPosition - b.startPosition);
-        
-        // Aggiorna il contenuto di ciascun capitolo
-        for (let i = 0; i < chapters.length; i++) {
-            const startPos = chapters[i].startPosition;
-            const endPos = (i < chapters.length - 1) ? chapters[i+1].startPosition : extractedText.length;
-            
-            chapters[i].content = extractedText.substring(startPos, endPos).trim();
-        }
-    }
+       // Apri il modal per modificare un capitolo
+       function openEditChapterModal(index) {
+           currentEditingChapterIndex = index;
+           const chapter = chapters[index];
+           
+           chapterTitle.value = chapter.title;
+           chapterStartPosition.value = chapter.startPosition;
+           sectionType.value = chapter.type || 'normal';
+           
+           openModal();
+       }
 
-    // Elimina un capitolo
-    function deleteChapter(index) {
-        if (chapters.length <= 1) {
-            showNotification('Non è possibile eliminare l\'unica sezione presente.', true);
-            return;
-        }
-        
-        // Rimuovi il capitolo
-        chapters.splice(index, 1);
-        
-        // Aggiorna l'UI
-        updateChaptersList();
-        
-        showNotification('Sezione eliminata con successo.');
-    }
+       // Salva le modifiche al capitolo
+       function saveChapterChanges() {
+           const title = chapterTitle.value.trim();
+           const startPos = parseInt(chapterStartPosition.value);
+           const type = sectionType.value;
+           
+           if (!title) {
+               showNotification('Inserisci un titolo per la sezione.', true);
+               return;
+           }
+           
+           if (isNaN(startPos) || startPos < 0 || startPos >= extractedText.length) {
+               showNotification('Posizione di inizio non valida.', true);
+               return;
+           }
+           
+           if (currentEditingChapterIndex === -1) {
+               // Nuovo capitolo
+               const newChapter = {
+                   title: title,
+                   startPosition: startPos,
+                   content: extractedText.substring(startPos).trim(),
+type: type
+               };
+               
+               chapters.push(newChapter);
+               
+               // Aggiorna i capitoli esistenti
+               updateChapterBoundaries();
+           } else {
+               // Modifica di un capitolo esistente
+               chapters[currentEditingChapterIndex].title = title;
+               chapters[currentEditingChapterIndex].startPosition = startPos;
+               chapters[currentEditingChapterIndex].type = type;
+               
+               // Aggiorna il contenuto in base alla nuova posizione
+               updateChapterBoundaries();
+           }
+           
+           // Aggiorna l'UI
+           updateChaptersList();
+           
+           // Chiudi il modal
+           closeModal();
+       }
 
-    // Procedi alla fase di modifica del testo
-    function goToEditStep() {
-        goToStep(3);
-        loadChapterContent();
-    }
+       // Aggiorna i confini dei capitoli dopo modifiche
+       function updateChapterBoundaries() {
+           // Ordina i capitoli per posizione
+           chapters.sort((a, b) => a.startPosition - b.startPosition);
+           
+           // Aggiorna il contenuto di ciascun capitolo
+           for (let i = 0; i < chapters.length; i++) {
+               const startPos = chapters[i].startPosition;
+               const endPos = (i < chapters.length - 1) ? chapters[i+1].startPosition : extractedText.length;
+               
+               chapters[i].content = extractedText.substring(startPos, endPos).trim();
+           }
+       }
 
-    // Salva le modifiche al testo del capitolo
-    function saveTextChanges() {
-        const selectedIndex = parseInt(chapterSelect.value);
-        if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= chapters.length) return;
-        
-        // Salva il contenuto modificato
-        chapters[selectedIndex].content = textEditor.value;
-        
-        // Salva anche il tipo di contenuto
-        const selectedType = document.querySelector('input[name="contentType"]:checked').value;
-        chapters[selectedIndex].type = selectedType;
-        
-        showNotification('Modifiche salvate con successo.');
-    }
+       // Elimina un capitolo
+       function deleteChapter(index) {
+           if (chapters.length <= 1) {
+               showNotification('Non è possibile eliminare l\'unica sezione presente.', true);
+               return;
+           }
+           
+           // Rimuovi il capitolo
+           chapters.splice(index, 1);
+           
+           // Aggiorna l'UI
+           updateChaptersList();
+           
+           showNotification('Sezione eliminata con successo.');
+       }
 
-    // Genera il file EPUB
-    async function generateEpub() {
-        try {
-            // Salva le eventuali modifiche in corso
-            saveTextChanges();
-            
-            // Mostra il loader
-            generateEpubBtn.disabled = true;
-            generateSpinner.classList.remove('spinner-hidden');
-            generateSpinner.classList.add('spinner-visible');
-            
-            // Crea un nuovo file EPUB (ZIP)
-            const zip = new JSZip();
-            
-            // Aggiungi il file mimetype (deve essere il primo e non compresso)
-            zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
-            
-            // Crea la struttura delle cartelle
-            const metaInf = zip.folder('META-INF');
-            const oebps = zip.folder('OEBPS');
-            const textFolder = oebps.folder('text');
-            const cssFolder = oebps.folder('css');
-            const imagesFolder = oebps.folder('images');
-            
-            // Aggiungi il file container.xml
-            metaInf.file('container.xml', `<?xml version="1.0" encoding="UTF-8"?>
-            <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
-              <rootfiles>
-                <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
-              </rootfiles>
-            </container>`);
-            
-          // Aggiungi il CSS con stili migliorati per i vari tipi di contenuto
-cssFolder.file('style.css', `
-body {
-    font-family: serif;
-    margin: 5%;
-    text-align: justify;
-    line-height: 1.5;
-}
-h1, h2, h3, h4, h5, h6 {
-    text-align: center;
-    line-height: 1.2;
-    margin: 1em 0;
-}
-.title {
-    font-size: 2em;
-    font-weight: bold;
-    margin-bottom: 1em;
-    text-align: center;
-}
-.author {
-    font-size: 1.5em;
-    text-align: center;
-    margin-bottom: 2em;
-}
-.chapter {
-    page-break-before: always;
-}
-.chapter-title {
-    font-size: 1.5em;
-    font-weight: bold;
-    text-align: center;
-    margin-bottom: 1.5em;
-    margin-top: 1.5em;
-}
-p {
-    text-indent: 1.5em;
-    margin: 0;
-}
-.dedication {
-    font-style: italic;
-    text-align: center;
-    margin: 2em 0;
-    page-break-before: always;
-}
-.quote {
-    font-style: italic;
-    margin: 2em 5%;
-    text-align: justify;
-    page-break-before: always;
-}
-.quote .attribution {
-    text-align: right;
-    margin-top: 1em;
-}
-.colophon {
-    font-size: 0.9em;
-    text-align: center;
-    margin: 2em 0;
-    page-break-before: always;
-}
-.footnote {
-    font-size: 0.9em;
-    margin-top: 1em;
-    border-top: 1px solid #ccc;
-    padding-top: 0.5em;
-}
-.preserve-whitespace {
-    white-space: pre-wrap;
-}
-.no-indent {
-    text-indent: 0;
-}
-.centered {
-    text-align: center;
-    text-indent: 0;
-}
-.main-chapter {
-    font-size: 1.1em;
-}
-.main-chapter .chapter-title {
-    font-size: 1.7em;
-    page-break-before: always;
-}
-`);
+       // Procedi alla fase di modifica del testo
+       function goToEditStep() {
+           goToStep(3);
+           loadChapterContent();
+       }
+
+       // Salva le modifiche al testo del capitolo
+       function saveTextChanges() {
+           const selectedIndex = parseInt(chapterSelect.value);
+           if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= chapters.length) return;
+           
+           // Salva il contenuto modificato
+           chapters[selectedIndex].content = textEditor.value;
+           
+           // Salva anche il tipo di contenuto
+           const selectedType = document.querySelector('input[name="contentType"]:checked').value;
+           chapters[selectedIndex].type = selectedType;
+           
+           showNotification('Modifiche salvate con successo.');
+       }
+
+       // Genera il file EPUB
+       async function generateEpub() {
+           try {
+               // Salva le eventuali modifiche in corso
+               saveTextChanges();
+               
+               // Mostra il loader
+               generateEpubBtn.disabled = true;
+               generateSpinner.classList.remove('spinner-hidden');
+               generateSpinner.classList.add('spinner-visible');
+               
+               // Crea un nuovo file EPUB (ZIP)
+               const zip = new JSZip();
+               
+               // Aggiungi il file mimetype (deve essere il primo e non compresso)
+               zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
+               
+               // Crea la struttura delle cartelle
+               const metaInf = zip.folder('META-INF');
+               const oebps = zip.folder('OEBPS');
+               const textFolder = oebps.folder('text');
+               const cssFolder = oebps.folder('css');
+               const imagesFolder = oebps.folder('images');
+               
+               // Aggiungi il file container.xml
+               metaInf.file('container.xml', `<?xml version="1.0" encoding="UTF-8"?>
+               <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+                 <rootfiles>
+                   <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+                 </rootfiles>
+               </container>`);
+               
+               // Aggiungi il CSS con stili migliorati per i vari tipi di contenuto
+               // Ora con page-break solo per i capitoli
+               cssFolder.file('style.css', `
+               body {
+                   font-family: serif;
+                   margin: 5%;
+                   text-align: justify;
+                   line-height: 1.5;
+               }
+               h1, h2, h3, h4, h5, h6 {
+                   text-align: center;
+                   line-height: 1.2;
+                   margin: 1em 0;
+               }
+               .title {
+                   font-size: 2em;
+                   font-weight: bold;
+                   margin-bottom: 1em;
+                   text-align: center;
+               }
+               .author {
+                   font-size: 1.5em;
+                   text-align: center;
+                   margin-bottom: 2em;
+               }
+               .chapter {
+                   page-break-before: always;
+               }
+               .chapter-title {
+                   font-size: 1.5em;
+                   font-weight: bold;
+                   text-align: center;
+                   margin-bottom: 1.5em;
+                   margin-top: 1.5em;
+               }
+               p {
+                   text-indent: 1.5em;
+                   margin: 0;
+               }
+               .dedication {
+                   font-style: italic;
+                   text-align: center;
+                   margin: 2em 0;
+               }
+               .quote {
+                   font-style: italic;
+                   margin: 2em 5%;
+                   text-align: justify;
+               }
+               .quote .attribution {
+                   text-align: right;
+                   margin-top: 1em;
+               }
+               .colophon {
+                   font-size: 0.9em;
+                   text-align: center;
+                   margin: 2em 0;
+               }
+               .footnote {
+                   font-size: 0.9em;
+                   margin-top: 1em;
+                   border-top: 1px solid #ccc;
+                   padding-top: 0.5em;
+               }
+               .preserve-whitespace {
+                   white-space: pre-wrap;
+               }
+               .no-indent {
+                   text-indent: 0;
+               }
+               .centered {
+                   text-align: center;
+                   text-indent: 0;
+               }
+               .main-chapter {
+                   font-size: 1.1em;
+               }
+               .main-chapter .chapter-title {
+                   font-size: 1.7em;
+               }
+               `);
                
                // Crea la pagina di copertina
                const coverHtml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -1693,123 +1732,124 @@ p {
                textFolder.file('title.xhtml', titleHtml);
                
                // Crea i file dei capitoli
-const chapterFiles = [];
-
-// Raccogli tutti i capitoli veri (non elementi speciali)
-const mainChapters = chapters.filter(ch => ch.type === 'chapter');
-
-for (let i = 0; i < chapters.length; i++) {
-    const chapter = chapters[i];
-    const filename = `chapter${(i+1).toString().padStart(3, '0')}.xhtml`;
-    
-    // Formatta il contenuto in base al tipo di sezione
-    let contentHtml = '';
-    let chapterClass = '';
-    let titleHtml = '';
-    
-    switch (chapter.type) {
-        case 'dedication':
-            contentHtml = formatDedication(chapter.content);
-            chapterClass = 'dedication';
-            titleHtml = `<h2>${escapeXml(chapter.title)}</h2>`;
-            break;
-            
-        case 'quote':
-            contentHtml = formatQuote(chapter.content);
-            chapterClass = 'quote';
-            titleHtml = `<h2>${escapeXml(chapter.title)}</h2>`;
-            break;
-            
-        case 'colophon':
-            contentHtml = formatColophon(chapter.content);
-            chapterClass = 'colophon';
-            titleHtml = `<h2>${escapeXml(chapter.title)}</h2>`;
-            break;
-            
-        case 'title':
-            contentHtml = formatTitle(chapter.content);
-            chapterClass = 'title';
-            titleHtml = '';  // Il titolo è già nel contenuto
-            break;
-            
-        case 'chapter':
-            // Verifica se è un capitolo numerato effettivo
-            const isMainChapter = mainChapters.length > 1 && mainChapters.includes(chapter);
-            chapterClass = isMainChapter ? 'chapter main-chapter' : 'chapter';
-            
-            // Testo formattato appropriatamente
-            contentHtml = formatNormalText(chapter.content);
-            
-            // Titolo del capitolo con formattazione appropriata
-            titleHtml = `<div class="chapter-title">${escapeXml(chapter.title)}</div>`;
-            break;
-            
-        case 'normal':
-        default:
-            contentHtml = formatNormalText(chapter.content);
-            chapterClass = 'normal';
-            titleHtml = chapter.title !== 'Intero documento' ? 
-                `<div class="chapter-title">${escapeXml(chapter.title)}</div>` : '';
-            break;
-    }
-    
-    const chapterHtml = `<?xml version="1.0" encoding="UTF-8"?>
-    <!DOCTYPE html>
-    <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
-    <head>
-        <meta charset="UTF-8"/>
-        <title>${escapeXml(chapter.title)}</title>
-        <link rel="stylesheet" type="text/css" href="../css/style.css"/>
-    </head>
-    <body>
-        <div class="${chapterClass}">
-            ${titleHtml}
-            ${contentHtml}
-        </div>
-    </body>
-    </html>`;
-    
-    textFolder.file(filename, chapterHtml);
-    
-    // Aggiungi alla lista dei file di capitolo solo quelli che dovrebbero apparire nell'indice
-    if (chapter.type === 'chapter' || chapter.type === 'normal' || 
-        chapter.type === 'dedication' || chapter.type === 'colophon') {
-        chapterFiles.push({
-            id: `chapter${i+1}`,
-            filename: filename,
-            title: chapter.title,
-            type: chapter.type
-        });
-    }
-}
+               const chapterFiles = [];
                
-            // Crea la Table of Contents
-const tocHtml = `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
-<head>
-    <meta charset="UTF-8"/>
-    <title>Indice</title>
-    <link rel="stylesheet" type="text/css" href="../css/style.css"/>
-</head>
-<body>
-    <div class="chapter-title">Indice</div>
-    <nav epub:type="toc" id="toc">
-        <ol>
-            <li><a href="cover.xhtml">Copertina</a></li>
-            <li><a href="title.xhtml">Frontespizio</a></li>
-            ${chapterFiles.map(chapter => {
-                // Aggiungi classi speciali o indentazione per l'indice in base al tipo
-                let className = '';
-                if (chapter.type === 'chapter') {
-                    className = ' class="toc-chapter"';
-                }
-                return `<li${className}><a href="${chapter.filename}">${escapeXml(chapter.title)}</a></li>`;
-            }).join('\n')}
-        </ol>
-    </nav>
-</body>
-</html>`;
+               // Raccogli tutti i capitoli veri (non elementi speciali)
+               const mainChapters = chapters.filter(ch => ch.type === 'chapter');
+               
+               for (let i = 0; i < chapters.length; i++) {
+                   const chapter = chapters[i];
+                   const filename = `chapter${(i+1).toString().padStart(3, '0')}.xhtml`;
+                   
+                   // Formatta il contenuto in base al tipo di sezione
+                   let contentHtml = '';
+                   let chapterClass = '';
+                   let titleHtml = '';
+                   
+                   switch (chapter.type) {
+                       case 'dedication':
+                           contentHtml = formatDedication(chapter.content);
+                           chapterClass = 'dedication';
+                           titleHtml = `<h2>${escapeXml(chapter.title)}</h2>`;
+                           break;
+                           
+                       case 'quote':
+                           contentHtml = formatQuote(chapter.content);
+                           chapterClass = 'quote';
+                           titleHtml = `<h2>${escapeXml(chapter.title)}</h2>`;
+                           break;
+                           
+                       case 'colophon':
+                           contentHtml = formatColophon(chapter.content);
+                           chapterClass = 'colophon';
+                           titleHtml = `<h2>${escapeXml(chapter.title)}</h2>`;
+                           break;
+                           
+                       case 'title':
+                           contentHtml = formatTitle(chapter.content);
+                           chapterClass = 'title';
+                           titleHtml = '';  // Il titolo è già nel contenuto
+                           break;
+                           
+                       case 'chapter':
+                           // Verifica se è un capitolo numerato effettivo
+                           const isMainChapter = mainChapters.length > 1 && mainChapters.includes(chapter);
+                           // Imposta page-break per i capitoli
+                           chapterClass = isMainChapter ? 'chapter main-chapter' : 'chapter';
+                           
+                           // Testo formattato appropriatamente
+                           contentHtml = formatNormalText(chapter.content);
+                           
+                           // Titolo del capitolo con formattazione appropriata
+                           titleHtml = `<div class="chapter-title">${escapeXml(chapter.title)}</div>`;
+                           break;
+                           
+                       case 'normal':
+                       default:
+                           contentHtml = formatNormalText(chapter.content);
+                           chapterClass = 'normal';
+                           titleHtml = chapter.title !== 'Intero documento' ? 
+                               `<div class="chapter-title">${escapeXml(chapter.title)}</div>` : '';
+                           break;
+                   }
+                   
+                   const chapterHtml = `<?xml version="1.0" encoding="UTF-8"?>
+                   <!DOCTYPE html>
+                   <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+                   <head>
+                       <meta charset="UTF-8"/>
+                       <title>${escapeXml(chapter.title)}</title>
+                       <link rel="stylesheet" type="text/css" href="../css/style.css"/>
+                   </head>
+                   <body>
+                       <div class="${chapterClass}">
+                           ${titleHtml}
+                           ${contentHtml}
+                       </div>
+                   </body>
+                   </html>`;
+                   
+                   textFolder.file(filename, chapterHtml);
+                   
+                   // Aggiungi alla lista dei file di capitolo solo quelli che dovrebbero apparire nell'indice
+                   if (chapter.type === 'chapter' || chapter.type === 'normal' || 
+                       chapter.type === 'dedication' || chapter.type === 'colophon') {
+                       chapterFiles.push({
+                           id: `chapter${i+1}`,
+                           filename: filename,
+                           title: chapter.title,
+                           type: chapter.type
+                       });
+                   }
+               }
+               
+               // Crea la Table of Contents
+               const tocHtml = `<?xml version="1.0" encoding="UTF-8"?>
+               <!DOCTYPE html>
+               <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+               <head>
+                   <meta charset="UTF-8"/>
+                   <title>Indice</title>
+                   <link rel="stylesheet" type="text/css" href="../css/style.css"/>
+               </head>
+               <body>
+                   <div class="chapter-title">Indice</div>
+                   <nav epub:type="toc" id="toc">
+                       <ol>
+                           <li><a href="cover.xhtml">Copertina</a></li>
+                           <li><a href="title.xhtml">Frontespizio</a></li>
+                           ${chapterFiles.map(chapter => {
+                               // Aggiungi classi speciali o indentazione per l'indice in base al tipo
+                               let className = '';
+                               if (chapter.type === 'chapter') {
+                                   className = ' class="toc-chapter"';
+                               }
+                               return `<li${className}><a href="${chapter.filename}">${escapeXml(chapter.title)}</a></li>`;
+                           }).join('\n')}
+                       </ol>
+                   </nav>
+               </body>
+               </html>`;
                
                textFolder.file('toc.xhtml', tocHtml);
                
@@ -1909,31 +1949,32 @@ const tocHtml = `<?xml version="1.0" encoding="UTF-8"?>
            }
        }
 
-      function formatNormalText(text) {
-    // Dividi in paragrafi
-    const paragraphs = text.split(/\n\s*\n/);
-    let html = '';
-    
-    for (const paragraph of paragraphs) {
-        if (paragraph.trim()) {
-            // Verifica se è un paragrafo centrato (tutto maiuscolo o inizia con * o simili)
-            if (/^[A-ZÀÈÌÒÙ\s,.;:'"!?0-9]+$/.test(paragraph) || 
-                /^[*\s_-]+/.test(paragraph)) {
-                html += `<p class="centered">${escapeXml(paragraph.trim())}</p>\n`;
-            } 
-            // Verifica se è un paragrafo senza indentazione (inizia con tab o spazi)
-            else if (/^\s+/.test(paragraph)) {
-                html += `<p class="no-indent">${escapeXml(paragraph.trim())}</p>\n`;
-            } 
-            // Paragrafo normale
-            else {
-                html += `<p>${escapeXml(paragraph.trim())}</p>\n`;
-            }
-        }
-    }
-    
-    return html;
-}
+       // Formatta il testo normale (capitoli e testo generico)
+       function formatNormalText(text) {
+           // Dividi in paragrafi
+           const paragraphs = text.split(/\n\s*\n/);
+           let html = '';
+           
+           for (const paragraph of paragraphs) {
+               if (paragraph.trim()) {
+                   // Verifica se è un paragrafo centrato (tutto maiuscolo o inizia con * o simili)
+                   if (/^[A-ZÀÈÌÒÙ\s,.;:'"!?0-9]+$/.test(paragraph) || 
+                       /^[*\s_-]+/.test(paragraph)) {
+                       html += `<p class="centered">${escapeXml(paragraph.trim())}</p>\n`;
+                   } 
+                   // Verifica se è un paragrafo senza indentazione (inizia con tab o spazi)
+                   else if (/^\s+/.test(paragraph)) {
+                       html += `<p class="no-indent">${escapeXml(paragraph.trim())}</p>\n`;
+                   } 
+                   // Paragrafo normale
+                   else {
+                       html += `<p>${escapeXml(paragraph.trim())}</p>\n`;
+                   }
+               }
+           }
+           
+           return html;
+       }
 
        // Formatta una dedica
        function formatDedication(text) {
