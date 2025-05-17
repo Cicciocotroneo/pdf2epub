@@ -1,462 +1,1189 @@
+
 <!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Convertitore PDF to EPUB</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <title>Convertitore PDF a EPUB</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            max-width: 900px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
-            line-height: 1.6;
+            background-color: #f5f5f5;
         }
         h1 {
-            color: #333;
+            color: #2c3e50;
             text-align: center;
+            margin-bottom: 30px;
         }
         .container {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
-        .upload-section {
-            border: 2px dashed #ccc;
-            padding: 20px;
+        .step {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        .step-title {
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #2980b9;
+            font-size: 1.2em;
+        }
+        .upload-area {
+            border: 2px dashed #bdc3c7;
+            border-radius: 5px;
+            padding: 25px;
             text-align: center;
-            border-radius: 5px;
-        }
-        .preview-section, .metadata-section {
-            display: none;
-            border: 1px solid #ddd;
-            padding: 15px;
-            border-radius: 5px;
+            margin-bottom: 20px;
             background-color: #f9f9f9;
+            cursor: pointer;
+        }
+        .upload-area:hover {
+            background-color: #f0f0f0;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
         }
         textarea {
             width: 100%;
-            height: 300px;
-            font-family: monospace;
+            min-height: 300px;
             padding: 10px;
-            box-sizing: border-box;
-        }
-        button {
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            text-align: center;
-            text-decoration: none;
-            display: inline-block;
-            font-size: 16px;
-            margin: 4px 2px;
-            cursor: pointer;
+            border: 1px solid #ddd;
             border-radius: 5px;
-        }
-        button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
-        .progress-bar {
-            width: 100%;
-            background-color: #f1f1f1;
-            border-radius: 5px;
-            margin-top: 10px;
-            display: none;
-        }
-        .progress {
-            height: 20px;
-            background-color: #4CAF50;
-            border-radius: 5px;
-            width: 0%;
-            text-align: center;
-            line-height: 20px;
-            color: white;
+            resize: vertical;
+            font-family: monospace;
+            font-size: 14px;
+            line-height: 1.5;
         }
         .metadata-form {
             display: grid;
-            grid-template-columns: 1fr 3fr;
-            gap: 10px;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .form-group {
             margin-bottom: 15px;
         }
-        .metadata-form label {
+        label {
+            display: block;
+            margin-bottom: 5px;
             font-weight: bold;
-            align-self: center;
+            color: #555;
         }
-        .metadata-form input {
-            padding: 8px;
+        input[type="text"] {
+            width: 100%;
+            padding: 8px 10px;
             border: 1px solid #ddd;
-            border-radius: 4px;
+            border-radius: 5px;
         }
-        .tab-container {
-            display: flex;
-            margin-bottom: 15px;
+        .content-preview {
+            max-height: 500px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-top: 10px;
+            background-color: #fff;
+            border-radius: 5px;
         }
-        .tab {
-            padding: 10px 15px;
+        .chapter {
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 20px;
+        }
+        .chapter-header {
+            font-weight: bold;
+            margin-bottom: 10px;
             cursor: pointer;
-            background-color: #f1f1f1;
-            border: 1px solid #ddd;
-            border-bottom: none;
-            border-radius: 5px 5px 0 0;
-            margin-right: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        .tab.active {
-            background-color: #4CAF50;
-            color: white;
+        .chapter-content {
+            white-space: pre-wrap;
         }
-        .tab-content {
+        .progress-bar {
+            width: 100%;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            height: 20px;
+            overflow: hidden;
+        }
+        .progress {
+            background-color: #3498db;
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .status-message {
+            margin-top: 10px;
+            color: #7f8c8d;
+            font-style: italic;
+        }
+        .success-message {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        .error-message {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .hidden {
             display: none;
         }
-        .tab-content.active {
-            display: block;
+        .chapter-tools {
+            margin-bottom: 10px;
+        }
+        .step-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        .checkbox-container {
+            margin-top: 15px;
+        }
+        .processing-options {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
         }
     </style>
 </head>
 <body>
-    <h1>Convertitore PDF to EPUB</h1>
+    <h1>Convertitore PDF a EPUB</h1>
+    
     <div class="container">
-        <div class="upload-section">
-            <h3>Carica il tuo file PDF</h3>
-            <input type="file" id="pdfInput" accept=".pdf">
-            <p>Trasformerò il PDF in EPUB rimuovendo numeri di pagina, intestazioni ripetute e interruzioni non necessarie.</p>
-        </div>
-        
-        <div class="tab-container">
-            <div class="tab active" data-tab="preview">Anteprima</div>
-            <div class="tab" data-tab="metadata">Metadati</div>
-        </div>
-        
-        <div class="preview-section tab-content active" id="preview-tab">
-            <h3>Anteprima del testo</h3>
-            <p>Modifica il testo se necessario, poi procedi con la conversione.</p>
-            <textarea id="previewText"></textarea>
-        </div>
-        
-        <div class="metadata-section tab-content" id="metadata-tab">
-            <h3>Metadati EPUB</h3>
-            <div class="metadata-form">
-                <label for="bookTitle">Titolo:</label>
-                <input type="text" id="bookTitle" value="Libro Convertito">
-                
-                <label for="bookAuthor">Autore:</label>
-                <input type="text" id="bookAuthor" value="Autore Sconosciuto">
-                
-                <label for="bookLanguage">Lingua:</label>
-                <input type="text" id="bookLanguage" value="it">
-                
-                <label for="bookPublisher">Editore:</label>
-                <input type="text" id="bookPublisher" value="">
-                
-                <label for="bookDate">Data:</label>
-                <input type="text" id="bookDate" value="">
-                
-                <label for="bookId">Identificatore:</label>
-                <input type="text" id="bookId" value="urn:uuid:">
+        <!-- Step 1: Upload PDF -->
+        <div id="step1" class="step">
+            <div class="step-title">1. Carica PDF</div>
+            <div class="upload-area" id="dropArea">
+                <p>Trascina qui il tuo file PDF o clicca per selezionarlo</p>
+                <input type="file" id="fileInput" accept=".pdf" />
+            </div>
+            <div class="progress-bar hidden" id="progressBarContainer">
+                <div class="progress" id="progressBar"></div>
+            </div>
+            <div class="status-message" id="uploadStatus"></div>
+            <div class="step-buttons">
+                <div></div>
+                <button id="processBtn" disabled>Procedi all'estrazione del testo</button>
             </div>
         </div>
-        
-        <button id="convertBtn">Converti in EPUB</button>
-        
-        <div class="progress-bar" id="progressContainer">
-            <div class="progress" id="progressBar">0%</div>
+
+        <!-- Step 2: Process PDF and Preview -->
+        <div id="step2" class="step hidden">
+            <div class="step-title">2. Anteprima e Modifica del Testo</div>
+            
+            <div class="processing-options">
+                <div class="checkbox-container">
+                    <input type="checkbox" id="removePageNumbers" checked>
+                    <label for="removePageNumbers">Rimuovi numeri di pagina</label>
+                </div>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="removeHeaders" checked>
+                    <label for="removeHeaders">Rimuovi intestazioni ripetute</label>
+                </div>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="reflow" checked>
+                    <label for="reflow">Re-flow del testo (rimuovi a capo e sillabazione)</label>
+                </div>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="smartChapters" checked>
+                    <label for="smartChapters">Rileva automaticamente i capitoli</label>
+                </div>
+            </div>
+            
+            <div class="progress-bar hidden" id="processingProgressContainer">
+                <div class="progress" id="processingProgress"></div>
+            </div>
+            <div class="status-message" id="processingStatus">Estrazione del testo in corso...</div>
+            
+            <div id="chaptersContainer" class="hidden">
+                <div class="chapter-tools">
+                    <button id="expandAllBtn">Espandi tutti</button>
+                    <button id="collapseAllBtn">Comprimi tutti</button>
+                    <button id="addChapterBtn">Aggiungi capitolo</button>
+                </div>
+                <div id="chaptersPreview">
+                    <!-- Capitoli estratti verranno inseriti qui -->
+                </div>
+            </div>
+            
+            <div class="step-buttons">
+                <button id="backToStep1Btn">Indietro</button>
+                <button id="goToMetadataBtn" disabled>Procedi ai metadati</button>
+            </div>
+        </div>
+
+        <!-- Step 3: Edit Metadata -->
+        <div id="step3" class="step hidden">
+            <div class="step-title">3. Modifica Metadati</div>
+            
+            <div class="metadata-form">
+                <div class="form-group">
+                    <label for="bookTitle">Titolo</label>
+                    <input type="text" id="bookTitle" placeholder="Titolo del libro">
+                </div>
+                <div class="form-group">
+                    <label for="bookAuthor">Autore</label>
+                    <input type="text" id="bookAuthor" placeholder="Nome dell'autore">
+                </div>
+                <div class="form-group">
+                    <label for="bookLanguage">Lingua</label>
+                    <input type="text" id="bookLanguage" placeholder="it" value="it">
+                </div>
+                <div class="form-group">
+                    <label for="bookPublisher">Editore</label>
+                    <input type="text" id="bookPublisher" placeholder="Nome dell'editore">
+                </div>
+                <div class="form-group">
+                    <label for="bookDate">Data di pubblicazione</label>
+                    <input type="text" id="bookDate" placeholder="YYYY-MM-DD">
+                </div>
+                <div class="form-group">
+                    <label for="bookISBN">ISBN</label>
+                    <input type="text" id="bookISBN" placeholder="ISBN (opzionale)">
+                </div>
+            </div>
+            
+            <div class="step-buttons">
+                <button id="backToStep2Btn">Indietro</button>
+                <button id="generateEpubBtn">Genera EPUB</button>
+            </div>
+        </div>
+
+        <!-- Step 4: Download EPUB -->
+        <div id="step4" class="step hidden">
+            <div class="step-title">4. Download EPUB</div>
+            
+            <div class="progress-bar hidden" id="generatingProgressContainer">
+                <div class="progress" id="generatingProgress"></div>
+            </div>
+            <div class="status-message" id="generatingStatus">Generazione EPUB in corso...</div>
+            
+            <div id="downloadContainer" class="hidden" style="text-align: center; margin-top: 30px;">
+                <p class="success-message">EPUB generato con successo!</p>
+                <button id="downloadBtn">Scarica EPUB</button>
+                <p style="margin-top: 20px">Vuoi convertire un altro PDF?</p>
+                <button id="startOverBtn">Ricomincia</button>
+            </div>
         </div>
     </div>
 
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script>
-        // Inizializza PDF.js
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js';
+        // Inizializza PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
         
-        let extractedText = '';
-        let chapterPositions = [];
+        // Variabili globali
+        let pdfFile = null;
+        let pdfText = [];
+        let chapters = [];
+        let epubBlob = null;
         
-        // Gestione tab
-        document.querySelectorAll('.tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                
-                tab.classList.add('active');
-                document.getElementById(tab.dataset.tab + '-tab').classList.add('active');
+        // Elementi DOM
+        const dropArea = document.getElementById('dropArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadStatus = document.getElementById('uploadStatus');
+        const progressBar = document.getElementById('progressBar');
+        const progressBarContainer = document.getElementById('progressBarContainer');
+        const processBtn = document.getElementById('processBtn');
+        const step1 = document.getElementById('step1');
+        const step2 = document.getElementById('step2');
+        const step3 = document.getElementById('step3');
+        const step4 = document.getElementById('step4');
+        const processingStatus = document.getElementById('processingStatus');
+        const processingProgress = document.getElementById('processingProgress');
+        const processingProgressContainer = document.getElementById('processingProgressContainer');
+        const chaptersContainer = document.getElementById('chaptersContainer');
+        const chaptersPreview = document.getElementById('chaptersPreview');
+        const expandAllBtn = document.getElementById('expandAllBtn');
+        const collapseAllBtn = document.getElementById('collapseAllBtn');
+        const addChapterBtn = document.getElementById('addChapterBtn');
+        const backToStep1Btn = document.getElementById('backToStep1Btn');
+        const goToMetadataBtn = document.getElementById('goToMetadataBtn');
+        const backToStep2Btn = document.getElementById('backToStep2Btn');
+        const generateEpubBtn = document.getElementById('generateEpubBtn');
+        const bookTitle = document.getElementById('bookTitle');
+        const bookAuthor = document.getElementById('bookAuthor');
+        const bookLanguage = document.getElementById('bookLanguage');
+        const bookPublisher = document.getElementById('bookPublisher');
+        const bookDate = document.getElementById('bookDate');
+        const bookISBN = document.getElementById('bookISBN');
+        const generatingStatus = document.getElementById('generatingStatus');
+        const generatingProgress = document.getElementById('generatingProgress');
+        const generatingProgressContainer = document.getElementById('generatingProgressContainer');
+        const downloadContainer = document.getElementById('downloadContainer');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const startOverBtn = document.getElementById('startOverBtn');
+        const removePageNumbers = document.getElementById('removePageNumbers');
+        const removeHeaders = document.getElementById('removeHeaders');
+        const reflow = document.getElementById('reflow');
+        const smartChapters = document.getElementById('smartChapters');
+
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', setupEventListeners);
+        
+        function setupEventListeners() {
+            // Step 1: Upload PDF
+            dropArea.addEventListener('click', () => fileInput.click());
+            dropArea.addEventListener('dragover', e => {
+                e.preventDefault();
+                dropArea.style.backgroundColor = '#eef7ff';
             });
-        });
-        
-        document.getElementById('pdfInput').addEventListener('change', async function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+            dropArea.addEventListener('dragleave', () => {
+                dropArea.style.backgroundColor = '#f9f9f9';
+            });
+            dropArea.addEventListener('drop', handleFileDrop);
+            fileInput.addEventListener('change', handleFileSelect);
+            processBtn.addEventListener('click', processAndPreviewPDF);
             
-            document.getElementById('progressContainer').style.display = 'block';
-            document.getElementById('progressBar').style.width = '0%';
-            document.getElementById('progressBar').innerText = '0%';
+            // Step 2: Preview
+            backToStep1Btn.addEventListener('click', goToStep1);
+            goToMetadataBtn.addEventListener('click', goToStep3);
+            expandAllBtn.addEventListener('click', expandAllChapters);
+            collapseAllBtn.addEventListener('click', collapseAllChapters);
+            addChapterBtn.addEventListener('click', addNewChapter);
             
-            const arrayBuffer = await file.arrayBuffer();
-            const loadingTask = pdfjsLib.getDocument(arrayBuffer);
+            // Step 3: Metadata
+            backToStep2Btn.addEventListener('click', goToStep2);
+            generateEpubBtn.addEventListener('click', generateEpub);
             
-            try {
-                const pdf = await loadingTask.promise;
-                const numPages = pdf.numPages;
-                extractedText = '';
-                chapterPositions = [];
-                
-                // Analizza ogni pagina
-                for (let i = 1; i <= numPages; i++) {
-                    const page = await pdf.getPage(i);
-                    const textContent = await page.getTextContent();
-                    const viewport = page.getViewport({ scale: 1.0 });
-                    
-                    // Estrai il testo e analizza la struttura
-                    const pageText = processPageText(textContent.items, i, viewport.height);
-                    
-                    // Verifica se è una pagina di capitolo (vuota o con margine superiore grande)
-                    if (isChapterPage(textContent.items, viewport.height)) {
-                        chapterPositions.push(extractedText.length);
-                    }
-                    
-                    // Aggiorna la barra di progresso
-                    updateProgress(i, numPages);
-                }
-                
-                // Mostra l'anteprima
-                document.getElementById('previewText').value = extractedText;
-                document.querySelector('.preview-section').style.display = 'block';
-                document.querySelector('.metadata-section').style.display = 'block';
-                document.getElementById('progressContainer').style.display = 'none';
-                
-                // Imposta metadati di default
-                const now = new Date();
-                document.getElementById('bookDate').value = now.toISOString().split('T')[0];
-                document.getElementById('bookId').value = 'urn:uuid:' + generateUUID();
-                
-            } catch (error) {
-                console.error('Errore durante il processing del PDF:', error);
-                alert('Si è verificato un errore durante il processing del PDF: ' + error.message);
-                document.getElementById('progressContainer').style.display = 'none';
-            }
-        });
-        
-        function processPageText(textItems, pageNum, pageHeight) {
-            let pageText = '';
-            let prevItem = null;
-            let isHeaderFooter = false;
+            // Step 4: Download
+            downloadBtn.addEventListener('click', downloadEpub);
+            startOverBtn.addEventListener('click', startOver);
             
-            // Ordina gli elementi di testo dalla parte superiore a quella inferiore
-            textItems.sort((a, b) => b.transform[5] - a.transform[5]);
-            
-            // Analizza ogni elemento di testo nella pagina
-            for (const item of textItems) {
-                // Ignora elementi con font molto piccoli (tipici di numeri di pagina)
-                if (item.height < 8) continue;
-                
-                // Verifica se l'elemento è nell'area di header/footer (primi o ultimi 50px)
-                const yPos = item.transform[5];
-                if (yPos > pageHeight - 50 || yPos < 50) {
-                    isHeaderFooter = true;
-                } else {
-                    isHeaderFooter = false;
-                }
-                
-                // Se non è header/footer, processa il testo
-                if (!isHeaderFooter) {
-                    const itemText = item.str.trim();
-                    
-                    if (itemText) {
-                        // Unisci le parole divise da hyphenation
-                        if (prevItem && prevItem.str.endsWith('-') && !isPunctuation(itemText[0])) {
-                            pageText = pageText.slice(0, -1) + itemText;
-                        } else {
-                            // Aggiungi spazio se necessario
-                            if (prevItem && !isPunctuation(prevItem.str) && !itemText.startsWith(' ')) {
-                                pageText += ' ';
-                            }
-                            pageText += itemText;
-                        }
-                        
-                        // Aggiungi a capo dopo punteggiatura rilevante
-                        if (isRelevantPunctuation(itemText)) {
-                            pageText += '\n\n';
-                        }
-                        
-                        prevItem = item;
-                    }
-                }
-            }
-            
-            return pageText;
+            // Opzioni di elaborazione
+            removePageNumbers.addEventListener('change', processAndPreviewPDF);
+            removeHeaders.addEventListener('change', processAndPreviewPDF);
+            reflow.addEventListener('change', processAndPreviewPDF);
+            smartChapters.addEventListener('change', processAndPreviewPDF);
         }
         
-        function isChapterPage(textItems, pageHeight) {
-            // Verifica se la pagina è vuota o quasi
-            if (textItems.filter(item => item.height >= 8 && item.str.trim()).length < 3) return true;
+        // Gestione del caricamento file
+        function handleFileDrop(e) {
+            e.preventDefault();
+            dropArea.style.backgroundColor = '#f9f9f9';
             
-            // Verifica margine superiore grande (primo elemento molto in basso)
-            const mainTextItems = textItems.filter(item => item.height >= 8 && item.str.trim());
-            if (mainTextItems.length > 0) {
-                const firstItemY = mainTextItems[0].transform[5];
-                if (firstItemY < pageHeight - 150) return true; // Margine superiore di almeno 150px
+            if (e.dataTransfer.files.length) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        }
+        
+        function handleFileSelect(e) {
+            if (fileInput.files.length) {
+                handleFile(fileInput.files[0]);
+            }
+        }
+        
+        function handleFile(file) {
+            if (file.type !== 'application/pdf') {
+                uploadStatus.textContent = 'Errore: Seleziona un file PDF valido.';
+                uploadStatus.className = 'status-message error-message';
+                return;
+            }
+            
+            pdfFile = file;
+            uploadStatus.textContent = `File selezionato: ${file.name}`;
+            uploadStatus.className = 'status-message';
+            processBtn.disabled = false;
+            
+            // Prova a estrarre un titolo dal nome file
+            const fileName = file.name.replace('.pdf', '');
+            bookTitle.value = fileName;
+        }
+        
+        // Passaggio tra le diverse fasi
+        function goToStep1() {
+            step2.classList.add('hidden');
+            step1.classList.remove('hidden');
+        }
+        
+        function goToStep2() {
+            step1.classList.add('hidden');
+            step3.classList.add('hidden');
+            step2.classList.remove('hidden');
+        }
+        
+        function goToStep3() {
+            step2.classList.add('hidden');
+            step3.classList.remove('hidden');
+        }
+        
+        function goToStep4() {
+            step3.classList.add('hidden');
+            step4.classList.remove('hidden');
+            generatingProgressContainer.classList.remove('hidden');
+        }
+        
+        // Elaborazione del PDF
+        async function processAndPreviewPDF() {
+            if (!pdfFile) return;
+            
+            // Mostra il secondo passaggio
+            goToStep2();
+            
+            chaptersContainer.classList.add('hidden');
+            processingProgressContainer.classList.remove('hidden');
+            processingStatus.textContent = 'Estrazione del testo in corso...';
+            goToMetadataBtn.disabled = true;
+            
+            try {
+                // Leggi il PDF
+                const arrayBuffer = await readFileAsArrayBuffer(pdfFile);
+                const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+                pdfText = [];
+                
+                // Estrai il testo da tutte le pagine
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    processingProgress.style.width = `${(i / pdf.numPages) * 100}%`;
+                    processingStatus.textContent = `Estrazione pagina ${i} di ${pdf.numPages}...`;
+                    
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    
+                    // Estrai testo e info sullo stile per questa pagina
+                    const pageText = {
+                        text: textContent.items.map(item => item.str).join(' '),
+                        items: textContent.items,
+                        pageIndex: i - 1
+                    };
+                    
+                    pdfText.push(pageText);
+                }
+                
+                // Processa il testo
+                processText();
+                
+                // Mostra l'anteprima
+                chaptersContainer.classList.remove('hidden');
+                processingProgressContainer.classList.add('hidden');
+                processingStatus.textContent = 'Estrazione completata!';
+                goToMetadataBtn.disabled = false;
+                
+            } catch (error) {
+                processingStatus.textContent = `Errore durante l'elaborazione del PDF: ${error.message}`;
+                processingStatus.className = 'status-message error-message';
+                console.error('Errore durante l\'elaborazione del PDF:', error);
+            }
+        }
+        
+        function processText() {
+            // Opzioni di elaborazione
+            const shouldRemovePageNumbers = removePageNumbers.checked;
+            const shouldRemoveHeaders = removeHeaders.checked;
+            const shouldReflow = reflow.checked;
+            const shouldDetectChapters = smartChapters.checked;
+            
+            chapters = [];
+            
+            if (shouldDetectChapters) {
+                // Rileva i possibili capitoli
+                detectChapters();
+            } else {
+                // Crea un unico capitolo con tutto il testo
+                let allText = '';
+                for (const page of pdfText) {
+                    allText += ' ' + page.text;
+                }
+                
+                // Applica le elaborazioni richieste
+                if (shouldRemovePageNumbers) {
+                    allText = removePageNumbersFromText(allText);
+                }
+                
+                if (shouldRemoveHeaders) {
+                    allText = removeHeadersFromText(allText);
+                }
+                
+                if (shouldReflow) {
+                    allText = reflowText(allText);
+                }
+                
+                chapters.push({
+                    title: 'Capitolo 1',
+                    content: allText.trim()
+                });
+            }
+            
+            // Renderizza l'anteprima dei capitoli
+            renderChaptersPreview();
+        }
+        
+        function detectChapters() {
+            const shouldRemovePageNumbers = removePageNumbers.checked;
+            const shouldRemoveHeaders = removeHeaders.checked;
+            const shouldReflow = reflow.checked;
+            
+            // Rileva gli inizi di capitolo in base a stili, pagine vuote, ecc.
+            let currentChapter = {
+                title: 'Capitolo 1',
+                content: ''
+            };
+            
+            let chapterIndex = 1;
+            let inChapter = false;
+            
+            for (let i = 0; i < pdfText.length; i++) {
+                const page = pdfText[i];
+                let pageText = page.text;
+                
+                // Salta pagine vuote o quasi vuote
+                if (pageText.trim().length < 10) {
+                    if (inChapter && currentChapter.content.trim().length > 0) {
+                        // Fine del capitolo corrente, inizia uno nuovo
+                        chapters.push({...currentChapter});
+                        chapterIndex++;
+                        currentChapter = {
+                            title: `Capitolo ${chapterIndex}`,
+                            content: ''
+                        };
+                    }
+                    inChapter = false;
+                    continue;
+                }
+                
+                // Controlla se questa pagina sembra l'inizio di un capitolo
+                if (detectChapterStart(page, i > 0 ? pdfText[i-1] : null)) {
+                    if (inChapter && currentChapter.content.trim().length > 0) {
+                        // Fine del capitolo corrente, inizia uno nuovo
+                        chapters.push({...currentChapter});
+                        chapterIndex++;
+                    }
+                    
+                    // Estrai il titolo del capitolo se possibile
+                    const possibleTitle = extractChapterTitle(page);
+                    currentChapter = {
+                        title: possibleTitle || `Capitolo ${chapterIndex}`,
+                        content: ''
+                    };
+                    
+                    inChapter = true;
+                }
+                
+                if (!inChapter) {
+                    inChapter = true;
+                }
+                
+                // Applica le elaborazioni richieste
+                if (shouldRemovePageNumbers) {
+                    pageText = removePageNumbersFromText(pageText);
+                }
+                
+                if (shouldRemoveHeaders) {
+                    pageText = removeHeadersFromText(pageText);
+                }
+                
+                if (shouldReflow) {
+                    // Accumuliamo il testo per fare il reflow alla fine
+                    currentChapter.content += ' ' + pageText;
+                } else {
+                    currentChapter.content += pageText + '\n\n';
+                }
+            }
+            
+            // Aggiungi l'ultimo capitolo se non è vuoto
+            if (currentChapter.content.trim().length > 0) {
+                // Applica il reflow sul contenuto accumulato
+                if (shouldReflow) {
+                    currentChapter.content = reflowText(currentChapter.content);
+                }
+                
+                chapters.push(currentChapter);
+            }
+            
+            // Se non sono stati rilevati capitoli, crea un unico capitolo
+            if (chapters.length === 0) {
+                let allText = pdfText.map(page => page.text).join(' ');
+                
+                if (shouldRemovePageNumbers) {
+                    allText = removePageNumbersFromText(allText);
+                }
+                
+                if (shouldRemoveHeaders) {
+                    allText = removeHeadersFromText(allText);
+                }
+                
+                if (shouldReflow) {
+                    allText = reflowText(allText);
+                }
+                
+                chapters.push({
+                    title: 'Capitolo 1',
+                    content: allText.trim()
+                });
+            } else {
+                // Applica il reflow ai capitoli se necessario
+                if (shouldReflow) {
+                    for (let i = 0; i < chapters.length; i++) {
+                        chapters[i].content = reflowText(chapters[i].content);
+                    }
+                }
+            }
+        }
+        
+        function detectChapterStart(page, prevPage) {
+            const items = page.items;
+            
+            // Verifica se c'è un possibile titolo di capitolo
+            if (items.length > 0) {
+                // Controlla il margine superiore - se è maggiore del normale
+                const firstItem = items[0];
+                if (firstItem.transform && firstItem.transform[5] < 150) {
+                    
+                    // Controlla dimensione del font e stile
+                    if (firstItem.fontName && (
+                        firstItem.fontName.includes('Bold') || 
+                        firstItem.fontName.includes('Heavy') ||
+                        firstItem.fontSize > 14)) {
+                        
+                        // Verifica se il testo può essere un titolo di capitolo
+                        const possibleTitle = firstItem.str.trim();
+                        if (possibleTitle.length > 0 && possibleTitle.length < 100) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            
+            // Controlla se la pagina precedente era vuota o quasi vuota
+            if (prevPage && prevPage.text.trim().length < 10) {
+                return true;
             }
             
             return false;
         }
         
-        function isPunctuation(str) {
-            return /^[.,;:!?)\]'"–-]$/.test(str.trim());
-        }
-        
-        function isRelevantPunctuation(str) {
-            const lastChar = str.trim().slice(-1);
-            return /^[.!?]$/.test(lastChar);
-        }
-        
-        function updateProgress(current, total) {
-            const progress = Math.round((current / total) * 100);
-            document.getElementById('progressBar').style.width = progress + '%';
-            document.getElementById('progressBar').innerText = progress + '%';
-        }
-        
-        document.getElementById('convertBtn').addEventListener('click', function() {
-            const finalText = document.getElementById('previewText').value;
-            const metadata = {
-                title: document.getElementById('bookTitle').value,
-                author: document.getElementById('bookAuthor').value,
-                language: document.getElementById('bookLanguage').value,
-                publisher: document.getElementById('bookPublisher').value,
-                date: document.getElementById('bookDate').value,
-                identifier: document.getElementById('bookId').value
-            };
-            createEPUB(finalText, metadata);
-        });
-        
-        function createEPUB(text, metadata) {
-            document.getElementById('progressContainer').style.display = 'block';
-            document.getElementById('progressBar').style.width = '0%';
-            document.getElementById('progressBar').innerText = 'Creazione EPUB...';
+        function extractChapterTitle(page) {
+            const items = page.items;
             
-            setTimeout(() => {
-                try {
-                    const zip = new JSZip();
-                    
-                    // Crea la struttura base dell'EPUB
-                    const mimetype = zip.folder("mimetype");
-                    mimetype.file("mimetype", "application/epub+zip");
-                    
-                    const metaInf = zip.folder("META-INF");
-                    metaInf.file("container.xml", `<?xml version="1.0"?>
-<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
-  <rootfiles>
-    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
-  </rootfiles>
-</container>`);
-                    
-                    const oebps = zip.folder("OEBPS");
-                    
-                    // Divide il testo in capitoli
-                    let chapters = [];
-                    if (chapterPositions.length > 0) {
-                        let start = 0;
-                        for (const pos of chapterPositions) {
-                            chapters.push(text.substring(start, pos).trim());
-                            start = pos;
-                        }
-                        chapters.push(text.substring(start).trim());
-                    } else {
-                        chapters = [text];
+            if (items.length > 0) {
+                const firstItem = items[0];
+                const possibleTitle = firstItem.str.trim();
+                
+                // Controlla se è un possibile titolo di capitolo
+                if (possibleTitle.length > 0 && possibleTitle.length < 100) {
+                    // Controllo se contiene parole come "Capitolo", "Parte", ecc.
+                    if (possibleTitle.match(/capitolo|parte|sezione|chapter|part|section/i)) {
+                        return possibleTitle;
                     }
                     
-                    // Crea i file HTML per ogni capitolo
-                    let tocItems = '';
-                    let manifestItems = '';
-                    let spineItems = '';
-                    
-                    chapters.forEach((chapter, index) => {
-                        const chapterNum = index + 1;
-                        const chapterId = `chapter${chapterNum}`;
-                        const chapterFile = `${chapterId}.xhtml`;
-                        
-                        oebps.file(chapterFile, `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
-<head>
-    <title>${metadata.title} - Capitolo ${chapterNum}</title>
-    <meta charset="UTF-8"/>
-    <style>
-        body { margin: 1em; line-height: 1.5; }
-        p { margin: 0 0 1em 0; text-align: justify; }
-    </style>
-</head>
-<body>
-    ${chapter.split('\n\n').map(para => para.trim() ? `<p>${para.replace(/\n/g, ' ')}</p>` : '').join('')}
-</body>
-</html>`);
-                        
-                        tocItems += `<navPoint id="navpoint-${chapterNum}" playOrder="${chapterNum}">
-            <navLabel><text>Capitolo ${chapterNum}</text></navLabel>
-            <content src="${chapterFile}"/>
-        </navPoint>\n`;
-                        manifestItems += `<item id="${chapterId}" href="${chapterFile}" media-type="application/xhtml+xml"/>\n`;
-                        spineItems += `<itemref idref="${chapterId}"/>\n`;
-                    });
-                    
-                    // Crea il file TOC
-                    oebps.file("toc.ncx", `<?xml version="1.0" encoding="UTF-8"?>
-<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
-<head>
-    <meta name="dtb:uid" content="${metadata.identifier}"/>
-    <meta name="dtb:depth" content="1"/>
-    <meta name="dtb:totalPageCount" content="0"/>
-    <meta name="dtb:maxPageNumber" content="0"/>
-</head>
-<docTitle><text>${metadata.title}</text></docTitle>
-<docAuthor><text>${metadata.author}</text></docAuthor>
-<navMap>
-    ${tocItems}
-</navMap>
-</ncx>`);
-                    
-                    // Crea il file content.opf
-                    oebps.file("content.opf", `<?xml version="1.0" encoding="UTF-8"?>
-<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">
-<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
-    <dc:identifier id="bookid">${metadata.identifier}</dc:identifier>
-    <dc:title>${metadata.title}</dc:title>
-    <dc:creator>${metadata.author}</dc:creator>
-    <dc:language>${metadata.language}</dc:language>
-    ${metadata.publisher ? `<dc:publisher>${metadata.publisher}</dc:publisher>` : ''}
-    ${metadata.date ? `<dc:date>${metadata.date}</dc:date>` : ''}
-</metadata>
-<manifest>
-    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
-    ${manifestItems}
-</manifest>
-<spine toc="ncx">
-    ${spineItems}
-</spine>
-</package>`);
-                    
-                    // Genera e scarica il file EPUB
-                    zip.generateAsync({type:"blob"}, (metadata) => {
-                        document.getElementById('progressBar').style.width = metadata.percent.toFixed(0) + '%';
-                        document.getElementById('progressBar').innerText = metadata.percent.toFixed(0) + '%';
-                    }).then(function(content) {
-                        const a = document.createElement("a");
-                        a.href = URL.createObjectURL(content);
-                        a.download = metadata.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() + ".epub";
-                        a.click();
-                        document.getElementById('progressContainer').style.display = 'none';
-                    });
-                } catch (error) {
-                    console.error('Errore durante la creazione dell\'EPUB:', error);
-                    alert('Si è verificato un errore durante la creazione dell\'EPUB: ' + error.message);
-                    document.getElementById('progressContainer').style.display = 'none';
+                    // Se la prima riga è molto più corta delle successive, potrebbe essere un titolo
+                    if (items.length > 1) {
+                        const secondItemLength = items[1].str.trim().length;
+                        if (possibleTitle.length < secondItemLength / 2) {
+                            return possibleTitle;
+                        }
+                    }
                 }
-            }, 100);
+            }
+            
+            return null;
+        }
+        
+        function removePageNumbersFromText(text) {
+            // Rimuovi numeri di pagina (in vari formati)
+            let cleaned = text;
+            
+            // Numeri di pagina isolati (come "123" o "- 123 -")
+            cleaned = cleaned.replace(/\s+\d+\s+/g, ' ');
+            cleaned = cleaned.replace(/\s+[\-–—]\s*\d+\s*[\-–—]\s+/g, ' ');
+            
+            // Numeri di pagina in formato "Pagina X di Y"
+            cleaned = cleaned.replace(/Pagina\s+\d+\s+di\s+\d+/gi, '');
+            cleaned = cleaned.replace(/Page\s+\d+\s+of\s+\d+/gi, '');
+            
+            return cleaned;
+        }
+        
+        function removeHeadersFromText(text) {
+            // Identifica e rimuovi intestazioni ripetute
+            // Questa è una semplificazione - un'implementazione reale richiederebbe
+            // analisi più sofisticate per identificare le intestazioni ripetute
+            
+            // Cerca frasi corte che si ripetono all'inizio di diverse pagine
+            const lines = text.split('\n');
+            const repeatedHeaders = {};
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line.length > 0 && line.length < 50) {
+                    repeatedHeaders[line] = (repeatedHeaders[line] || 0) + 1;
+                }
+            }
+            
+            // Rimuovi le intestazioni che si ripetono almeno 3 volte
+            let cleaned = text;
+            for (const header in repeatedHeaders) {
+                if (repeatedHeaders[header] >= 3) {
+                    const regex = new RegExp(`(^|\\n)${escapeRegExp(header)}(\\n|$)`, 'g');
+                    cleaned = cleaned.replace(regex, '$1$2');
+                }
+            }
+            
+            return cleaned;
+        }
+        
+        function reflowText(text) {
+            // Rimuovi sillabazione e unisci righe mantenendo i paragrafi
+            
+            // Sostituisci trattini di sillabazione
+            let reflowed = text.replace(/(\w+)[-­]\n(\w+)/g, '$1$2');
+            
+            // Rimuovi a capo non necessari (mantieni quelli dopo punteggiatura)
+            reflowed = reflowed.replace(/([^\.\?\!])\n([a-z])/gi, '$1 $2');
+            
+            // Preserva i paragrafi (doppio a capo)
+            reflowed = reflowed.replace(/\n\s*\n/g, '\n\n');
+            
+            // Rimuovi spazi multipli
+            reflowed = reflowed.replace(/\s+/g, ' ');
+            
+            return reflowed;
+        }
+        
+        function renderChaptersPreview() {
+            chaptersPreview.innerHTML = '';
+            
+            for (let i = 0; i < chapters.length; i++) {
+                const chapter = chapters[i];
+                
+                const chapterElement = document.createElement('div');
+                chapterElement.className = 'chapter';
+                chapterElement.dataset.index = i;
+                
+                const headerElement = document.createElement('div');
+                headerElement.className = 'chapter-header';
+                
+                const titleElement = document.createElement('input');
+                titleElement.type = 'text';
+                titleElement.value = chapter.title;
+                titleElement.dataset.index = i;
+                titleElement.addEventListener('change', (e) => {
+                    chapters[e.target.dataset.index].title = e.target.value;
+                });
+                
+                const toggleButton = document.createElement('button');
+                toggleButton.textContent = 'Mostra contenuto';
+                toggleButton.addEventListener('click', toggleChapterContent);
+                
+                headerElement.appendChild(titleElement);
+                headerElement.appendChild(toggleButton);
+                
+                const contentElement = document.createElement('div');
+                contentElement.className = 'chapter-content hidden';
+                
+                const textarea = document.createElement('textarea');
+                textarea.value = chapter.content;
+                textarea.dataset.index = i;
+                textarea.addEventListener('change', (e) => {
+                    chapters[e.target.dataset.index].content = e.target.value;
+                });
+                
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = 'Elimina capitolo';
+                deleteButton.dataset.index = i;
+                deleteButton.addEventListener('click', (e) => {
+                    deleteChapter(e.target.dataset.index);
+                });
+                
+                contentElement.appendChild(textarea);
+                contentElement.appendChild(deleteButton);
+                
+                chapterElement.appendChild(headerElement);
+                chapterElement.appendChild(contentElement);
+                
+                chaptersPreview.appendChild(chapterElement);
+            }
+        }
+        
+        function toggleChapterContent(e) {
+            const chapterElement = e.target.closest('.chapter');
+            const contentElement = chapterElement.querySelector('.chapter-content');
+            const button = e.target;
+            
+            if (contentElement.classList.contains('hidden')) {
+                contentElement.classList.remove('hidden');
+                button.textContent = 'Nascondi contenuto';
+            } else {
+                contentElement.classList.add('hidden');
+                button.textContent = 'Mostra contenuto';
+            }
+        }
+        
+        function expandAllChapters() {
+            const contentElements = document.querySelectorAll('.chapter-content');
+            const buttons = document.querySelectorAll('.chapter-header button');
+            
+            contentElements.forEach(element => {
+                element.classList.remove('hidden');
+            });
+            
+            buttons.forEach(button => {
+                button.textContent = 'Nascondi contenuto';
+            });
+        }
+        
+        function collapseAllChapters() {
+            const contentElements = document.querySelectorAll('.chapter-content');
+            const buttons = document.querySelectorAll('.chapter-header button');
+            
+            contentElements.forEach(element => {
+                element.classList.add('hidden');
+            });
+            
+            buttons.forEach(button => {
+                button.textContent = 'Mostra contenuto';
+            });
+        }
+        
+        function addNewChapter() {
+            chapters.push({
+                title: `Capitolo ${chapters.length + 1}`,
+                content: ''
+            });
+            
+            renderChaptersPreview();
+        }
+        
+        function deleteChapter(index) {
+            if (chapters.length <= 1) {
+                alert('Non puoi eliminare l\'unico capitolo!');
+                return;
+            }
+            
+            chapters.splice(index, 1);
+            renderChaptersPreview();
+        }
+        
+        // Genera EPUB
+        async function generateEpub() {
+            goToStep4();
+            
+            try {
+                // Crea un nuovo EPUB (usando JSZip)
+                const zip = new JSZip();
+                
+                // Metadati per l'EPUB
+                const title = bookTitle.value || 'Libro senza titolo';
+                const author = bookAuthor.value || 'Autore sconosciuto';
+                const language = bookLanguage.value || 'it';
+                const publisher = bookPublisher.value || '';
+                const date = bookDate.value || new Date().toISOString().split('T')[0];
+                const isbn = bookISBN.value || '';
+                
+                // Genera UUID per l'EPUB
+                const uuid = generateUUID();
+                
+                // Struttura base dell'EPUB
+                zip.file('mimetype', 'application/epub+zip');
+                
+                const metaInfDir = zip.folder('META-INF');
+                metaInfDir.file('container.xml', `<?xml version="1.0" encoding="UTF-8"?>
+                <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+                    <rootfiles>
+                        <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+                    </rootfiles>
+                </container>`);
+                
+                const oebpsDir = zip.folder('OEBPS');
+                
+                // Stile CSS
+                oebpsDir.file('styles.css', `
+                body {
+                    font-family: serif;
+                    margin: 5%;
+                    text-align: justify;
+                    line-height: 1.5;
+                }
+                h1, h2, h3, h4, h5, h6 {
+                    text-align: center;
+                    line-height: 1.3;
+                    margin: 1em 0;
+                }
+                hr {
+                    width: 50%;
+                    margin: 2em auto;
+                }
+                p {
+                    margin: 1em 0;
+                    text-indent: 1.5em;
+                }
+                .chapter {
+                    margin-top: 2em;
+                }
+                `);
+                
+                // Aggiungi contenuto di ogni capitolo
+                let contentOpf = `<?xml version="1.0" encoding="UTF-8"?>
+                <package xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookID" version="3.0">
+                    <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+                        <dc:title>${escapeXml(title)}</dc:title>
+                        <dc:creator>${escapeXml(author)}</dc:creator>
+                        <dc:language>${escapeXml(language)}</dc:language>
+                        <dc:identifier id="BookID">urn:uuid:${uuid}</dc:identifier>
+                        <dc:date>${escapeXml(date)}</dc:date>
+                        ${publisher ? `<dc:publisher>${escapeXml(publisher)}</dc:publisher>` : ''}
+                        ${isbn ? `<dc:identifier id="ISBN">${escapeXml(isbn)}</dc:identifier>` : ''}
+                        <meta property="dcterms:modified">${new Date().toISOString().slice(0, 19)}Z</meta>
+                    </metadata>
+                    <manifest>
+                        <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+                        <item id="style" href="styles.css" media-type="text/css"/>
+                        <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>`;
+                
+                let spine = `
+                    <spine toc="ncx">`;
+                
+                let toc = `<?xml version="1.0" encoding="UTF-8"?>
+                <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+                    <head>
+                        <meta name="dtb:uid" content="urn:uuid:${uuid}"/>
+                        <meta name="dtb:depth" content="1"/>
+                        <meta name="dtb:totalPageCount" content="0"/>
+                        <meta name="dtb:maxPageNumber" content="0"/>
+                    </head>
+                    <docTitle>
+                        <text>${escapeXml(title)}</text>
+                    </docTitle>
+                    <navMap>`;
+                
+                let nav = `<?xml version="1.0" encoding="UTF-8"?>
+                <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+                    <head>
+                        <title>${escapeXml(title)}</title>
+                        <link rel="stylesheet" type="text/css" href="styles.css" />
+                    </head>
+                    <body>
+                        <nav epub:type="toc" id="toc">
+                            <h1>Indice</h1>
+                            <ol>`;
+                
+                // Aggiungi copertina
+                oebpsDir.file('cover.xhtml', `<?xml version="1.0" encoding="UTF-8"?>
+                <html xmlns="http://www.w3.org/1999/xhtml">
+                    <head>
+                        <title>${escapeXml(title)}</title>
+                        <link rel="stylesheet" type="text/css" href="styles.css" />
+                    </head>
+                    <body>
+                        <h1>${escapeXml(title)}</h1>
+                        <h2>${escapeXml(author)}</h2>
+                    </body>
+                </html>`);
+                
+                contentOpf += `
+                        <item id="cover" href="cover.xhtml" media-type="application/xhtml+xml"/>`;
+                spine += `
+                        <itemref idref="cover"/>`;
+                
+                // Progresso
+                let totalChapters = chapters.length;
+                
+                // Aggiungi ogni capitolo
+                for (let i = 0; i < chapters.length; i++) {
+                    const chapter = chapters[i];
+                    const chapterFile = `chapter_${i+1}.xhtml`;
+                    const chapterId = `chapter${i+1}`;
+                    
+                    // Aggiorna progresso
+                    generatingProgress.style.width = `${((i + 1) / (totalChapters + 2)) * 100}%`;
+                    generatingStatus.textContent = `Generazione capitolo ${i+1} di ${totalChapters}...`;
+                    
+                    // Usa setTimeout per dare il tempo al browser di aggiornare l'UI
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    
+                    const chapterContent = `<?xml version="1.0" encoding="UTF-8"?>
+                    <html xmlns="http://www.w3.org/1999/xhtml">
+                        <head>
+                            <title>${escapeXml(chapter.title)}</title>
+                            <link rel="stylesheet" type="text/css" href="styles.css" />
+                        </head>
+                        <body>
+                            <div class="chapter">
+                                <h1>${escapeXml(chapter.title)}</h1>
+                                ${formatContentForEpub(chapter.content)}
+                            </div>
+                        </body>
+                    </html>`;
+                    
+                    oebpsDir.file(chapterFile, chapterContent);
+                    
+                    contentOpf += `
+                        <item id="${chapterId}" href="${chapterFile}" media-type="application/xhtml+xml"/>`;
+                    
+                    spine += `
+                        <itemref idref="${chapterId}"/>`;
+                    
+                    toc += `
+                        <navPoint id="navpoint-${i+1}" playOrder="${i+1}">
+                            <navLabel>
+                                <text>${escapeXml(chapter.title)}</text>
+                            </navLabel>
+                            <content src="${chapterFile}"/>
+                        </navPoint>`;
+                    
+                    nav += `
+                                <li><a href="${chapterFile}">${escapeXml(chapter.title)}</a></li>`;
+                }
+                
+                // Completa i file XML
+                contentOpf += `
+                    </manifest>`;
+                contentOpf += spine + `
+                    </spine>
+                </package>`;
+                
+                toc += `
+                    </navMap>
+                </ncx>`;
+                
+                nav += `
+                            </ol>
+                        </nav>
+                    </body>
+                </html>`;
+                
+                // Aggiungi i file XML all'EPUB
+                oebpsDir.file('content.opf', contentOpf);
+                oebpsDir.file('toc.ncx', toc);
+                oebpsDir.file('nav.xhtml', nav);
+                
+                // Aggiorna progresso
+                generatingProgress.style.width = '90%';
+                generatingStatus.textContent = 'Compressione EPUB...';
+                
+                // Genera il file EPUB (ZIP)
+                epubBlob = await zip.generateAsync({
+                    type: 'blob',
+                    mimeType: 'application/epub+zip',
+                    compression: 'DEFLATE',
+                    compressionOptions: { level: 9 }
+                });
+                
+                // Completa
+                generatingProgress.style.width = '100%';
+                generatingStatus.textContent = 'EPUB generato con successo!';
+                generatingProgressContainer.classList.add('hidden');
+                downloadContainer.classList.remove('hidden');
+                
+            } catch (error) {
+                generatingStatus.textContent = `Errore durante la generazione dell'EPUB: ${error.message}`;
+                generatingStatus.className = 'status-message error-message';
+                console.error('Errore durante la generazione dell\'EPUB:', error);
+            }
+        }
+        
+        function formatContentForEpub(content) {
+            // Converte il testo semplice in HTML formattato
+            
+            // Dividi in paragrafi
+            const paragraphs = content.split('\n\n');
+            
+            let formattedContent = '';
+            for (const paragraph of paragraphs) {
+                if (paragraph.trim().length > 0) {
+                    formattedContent += `<p>${escapeXml(paragraph.trim())}</p>\n`;
+                } else {
+                    formattedContent += `<hr/>\n`;
+                }
+            }
+            
+            return formattedContent;
+        }
+        
+        function downloadEpub() {
+            if (!epubBlob) return;
+            
+            const fileName = (bookTitle.value || 'libro').replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.epub';
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(epubBlob);
+            link.download = fileName;
+            link.click();
+        }
+        
+        function startOver() {
+            // Resetta tutto e torna alla prima fase
+            pdfFile = null;
+            pdfText = [];
+            chapters = [];
+            epubBlob = null;
+            
+            uploadStatus.textContent = '';
+            processingStatus.textContent = '';
+            generatingStatus.textContent = '';
+            
+            fileInput.value = '';
+            processBtn.disabled = true;
+            
+            step4.classList.add('hidden');
+            step1.classList.remove('hidden');
+        }
+        
+        // Utility Functions
+        function readFileAsArrayBuffer(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.onerror = e => reject(e);
+                reader.readAsArrayBuffer(file);
+            });
+        }
+        
+        function escapeRegExp(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\function renderChaptersPreview() {
+            chaptersPreview.innerHTML = '';
+            
+            for (let i = 0; i < chapters.length; i++) {
+                const chapter = chapters[i');
+        }
+        
+        function escapeXml(unsafe) {
+            return unsafe.replace(/[<>&'"]/g, c => {
+                switch (c) {
+                    case '<': return '&lt;';
+                    case '>': return '&gt;';
+                    case '&': return '&amp;';
+                    case '\'': return '&apos;';
+                    case '"': return '&quot;';
+                }
+            });
         }
         
         function generateUUID() {
+            // Implementazione semplice di UUID v4
             return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-                const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
                 return v.toString(16);
             });
         }
