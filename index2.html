@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Convertitore PDF to EPUB</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .upload-section {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px;
+        }
+        .preview-section, .metadata-section {
+            display: none;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        textarea {
+            width: 100%;
+            height: 300px;
+            font-family: monospace;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .progress-bar {
+            width: 100%;
+            background-color: #f1f1f1;
+            border-radius: 5px;
+            margin-top: 10px;
+            display: none;
+        }
+        .progress {
+            height: 20px;
+            background-color: #4CAF50;
+            border-radius: 5px;
+            width: 0%;
+            text-align: center;
+            line-height: 20px;
+            color: white;
+        }
+        .metadata-form {
+            display: grid;
+            grid-template-columns: 1fr 3fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .metadata-form label {
+            font-weight: bold;
+            align-self: center;
+        }
+        .metadata-form input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .tab-container {
+            display: flex;
+            margin-bottom: 15px;
+        }
+        .tab {
+            padding: 10px 15px;
+            cursor: pointer;
+            background-color: #f1f1f1;
+            border: 1px solid #ddd;
+            border-bottom: none;
+            border-radius: 5px 5px 0 0;
+            margin-right: 5px;
+        }
+        .tab.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>Convertitore PDF to EPUB</h1>
+    <div class="container">
+        <div class="upload-section">
+            <h3>Carica il tuo file PDF</h3>
+            <input type="file" id="pdfInput" accept=".pdf">
+            <p>Trasformerò il PDF in EPUB rimuovendo numeri di pagina, intestazioni ripetute e interruzioni non necessarie.</p>
+        </div>
+        
+        <div class="tab-container">
+            <div class="tab active" data-tab="preview">Anteprima</div>
+            <div class="tab" data-tab="metadata">Metadati</div>
+        </div>
+        
+        <div class="preview-section tab-content active" id="preview-tab">
+            <h3>Anteprima del testo</h3>
+            <p>Modifica il testo se necessario, poi procedi con la conversione.</p>
+            <textarea id="previewText"></textarea>
+        </div>
+        
+        <div class="metadata-section tab-content" id="metadata-tab">
+            <h3>Metadati EPUB</h3>
+            <div class="metadata-form">
+                <label for="bookTitle">Titolo:</label>
+                <input type="text" id="bookTitle" value="Libro Convertito">
+                
+                <label for="bookAuthor">Autore:</label>
+                <input type="text" id="bookAuthor" value="Autore Sconosciuto">
+                
+                <label for="bookLanguage">Lingua:</label>
+                <input type="text" id="bookLanguage" value="it">
+                
+                <label for="bookPublisher">Editore:</label>
+                <input type="text" id="bookPublisher" value="">
+                
+                <label for="bookDate">Data:</label>
+                <input type="text" id="bookDate" value="">
+                
+                <label for="bookId">Identificatore:</label>
+                <input type="text" id="bookId" value="urn:uuid:">
+            </div>
+        </div>
+        
+        <button id="convertBtn" disabled>Converti in EPUB</button>
+        
+        <div class="progress-bar" id="progressContainer">
+            <div class="progress" id="progressBar">0%</div>
+        </div>
+    </div>
+
+    <script>
+        // Inizializza PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js';
+        
+        let extractedText = '';
+        let chapterPositions = [];
+        
+        // Gestione tab
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab + '-tab').classList.add('active');
+            });
+        });
+        
+        document.getElementById('pdfInput').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            document.getElementById('progressContainer').style.display = 'block';
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('progressBar').innerText = '0%';
+            document.getElementById('convertBtn').disabled = true;
+            
+            const arrayBuffer = await file.arrayBuffer();
+            
+            try {
+                // Usiamo PDF.js per caricare il documento
+                const loadingTask = pdfjsLib.getDocument(arrayBuffer);
+                const pdf = await loadingTask.promise;
+                const numPages = pdf.numPages;
+                extractedText = '';
+                chapterPositions = [];
+                
+                // Analizza ogni pagina
+                for (let i = 1; i <= numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const viewport = page.getViewport({ scale: 1.0 });
+                    
+                    // Estrai il testo e analizza la struttura
+                    const pageText = processPageText(textContent.items, i, viewport.height);
+                    
+                    // Verifica se è una pagina di capitolo (vuota o con margine superiore grande)
+                    if (isChapterPage(textContent.items, viewport.height)) {
+                        chapterPositions.push(extractedText.length);
+                    }
+                    
+                    extractedText += pageText;
+                    
+                    // Aggiorna la barra di progresso
+                    updateProgress(i, numPages);
+                }
+                
+                // Mostra l'anteprima
+                document.getElementById('previewText').value = extractedText;
+                document.querySelector('.preview-section').style.display = 'block';
+                document.querySelector('.metadata-section').style.display = 'block';
+                document.getElementById('convertBtn').disabled = false;
+                
+                // Imposta metadati di default
+                const now = new Date();
+                document.getElementById('bookDate').value = now.toISOString().split('T')[0];
+                document.getElementById('bookId').value = 'urn:uuid:' + generateUUID();
+                document.getElementById('bookTitle').value = file.name.replace('.pdf', '');
+                
+            } catch (error) {
+                console.error('Errore durante il processing del PDF:', error);
+                alert('Si è verificato un errore durante il processing del PDF: ' + error.message);
+                document.getElementById('progressContainer').style.display = 'none';
+            }
+        });
+        
+        function processPageText(textItems, pageNum, pageHeight) {
+            let pageText = '';
+            let prevItem = null;
+            
+            // Ordina gli elementi di testo dalla parte superiore a quella inferiore
+            textItems.sort((a, b) => b.transform[5] - a.transform[5]);
+            
+            // Analizza ogni elemento di testo nella pagina
+            for (const item of textItems) {
+                // Ignora elementi con font molto piccoli (tipici di numeri di pagina)
+                if (item.height < 8) continue;
+                
+                // Verifica se l'elemento è nell'area di header/footer (primi o ultimi 50px)
+                const yPos = item.transform[5];
+                if (yPos > pageHeight - 50 || yPos < 50) continue;
+                
+                const itemText = item.str.trim();
+                
+                if (itemText) {
+                    // Unisci le parole divise da hyphenation
+                    if (prevItem && prevItem.str.endsWith('-') && !isPunctuation(itemText[0])) {
+                        pageText = pageText.slice(0, -1) + itemText;
+                    } else {
+                        // Aggiungi spazio se necessario
+                        if (prevItem && !isPunctuation(prevItem.str) && !itemText.startsWith(' ')) {
+                            pageText += ' ';
+                        }
+                        pageText += itemText;
+                    }
+                    
+                    // Aggiungi a capo dopo punteggiatura rilevante
+                    if (isRelevantPunctuation(itemText)) {
+                        pageText += '\n\n';
+                    }
+                    
+                    prevItem = item;
+                }
+            }
+            
+            return pageText + '\n\n';
+        }
+        
+        function isChapterPage(textItems, pageHeight) {
+            // Conta gli elementi di testo significativi
+            const significantItems = textItems.filter(item => 
+                item.height >= 8 && item.str.trim() && 
+                item.transform[5] > 50 && item.transform[5] < pageHeight - 50
+            );
+            
+            // Verifica se la pagina è vuota o quasi
+            if (significantItems.length < 3) return true;
+            
+            // Verifica margine superiore grande (primo elemento molto in basso)
+            if (significantItems.length > 0) {
+                const firstItemY = significantItems[0].transform[5];
+                if (firstItemY < pageHeight - 150) return true; // Margine superiore di almeno 150px
+            }
+            
+            return false;
+        }
+        
+        function isPunctuation(str) {
+            return /^[.,;:!?)\]'"–-]$/.test(str.trim());
+        }
+        
+        function isRelevantPunctuation(str) {
+            const lastChar = str.trim().slice(-1);
+            return /^[.!?]$/.test(lastChar);
+        }
+        
+        function updateProgress(current, total) {
+            const progress = Math.round((current / total) * 100);
+            document.getElementById('progressBar').style.width = progress + '%';
+            document.getElementById('progressBar').innerText = progress + '%';
+        }
+        
+        document.getElementById('convertBtn').addEventListener('click', function() {
+            const finalText = document.getElementById('previewText').value;
+            const metadata = {
+                title: document.getElementById('bookTitle').value,
+                author: document.getElementById('bookAuthor').value,
+                language: document.getElementById('bookLanguage').value,
+                publisher: document.getElementById('bookPublisher').value,
+                date: document.getElementById('bookDate').value,
+                identifier: document.getElementById('bookId').value
+            };
+            createEPUB(finalText, metadata);
+        });
+        
+        function createEPUB(text, metadata) {
+            document.getElementById('progressContainer').style.display = 'block';
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('progressBar').innerText = 'Creazione EPUB...';
+            
+            setTimeout(() => {
+                try {
+                    const zip = new JSZip();
+                    
+                    // Crea la struttura base dell'EPUB
+                    const mimetype = zip.folder("mimetype");
+                    mimetype.file("mimetype", "application/epub+zip");
+                    
+                    const metaInf = zip.folder("META-INF");
+                    metaInf.file("container.xml", `<?xml version="1.0"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`);
+                    
+                    const oebps = zip.folder("OEBPS");
+                    
+                    // Divide il testo in capitoli
+                    let chapters = [];
+                    if (chapterPositions.length > 0) {
+                        let start = 0;
+                        for (const pos of chapterPositions) {
+                            chapters.push(text.substring(start, pos).trim());
+                            start = pos;
+                        }
+                        chapters.push(text.substring(start).trim());
+                    } else {
+                        chapters = [text];
+                    }
+                    
+                    // Crea i file HTML per ogni capitolo
+                    let tocItems = '';
+                    let manifestItems = '';
+                    let spineItems = '';
+                    
+                    chapters.forEach((chapter, index) => {
+                        const chapterNum = index + 1;
+                        const chapterId = `chapter${chapterNum}`;
+                        const chapterFile = `${chapterId}.xhtml`;
+                        
+                        oebps.file(chapterFile, `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+<head>
+    <title>${metadata.title} - Capitolo ${chapterNum}</title>
+    <meta charset="UTF-8"/>
+    <style>
+        body { margin: 1em; line-height: 1.5; }
+        p { margin: 0 0 1em 0; text-align: justify; }
+    </style>
+</head>
+<body>
+    ${chapter.split('\n\n').map(para => para.trim() ? `<p>${para.replace(/\n/g, ' ')}</p>` : '').join('')}
+</body>
+</html>`);
+                        
+                        tocItems += `<navPoint id="navpoint-${chapterNum}" playOrder="${chapterNum}">
+            <navLabel><text>Capitolo ${chapterNum}</text></navLabel>
+            <content src="${chapterFile}"/>
+        </navPoint>\n`;
+                        manifestItems += `<item id="${chapterId}" href="${chapterFile}" media-type="application/xhtml+xml"/>\n`;
+                        spineItems += `<itemref idref="${chapterId}"/>\n`;
+                    });
+                    
+                    // Crea il file TOC
+                    oebps.file("toc.ncx", `<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+<head>
+    <meta name="dtb:uid" content="${metadata.identifier}"/>
+    <meta name="dtb:depth" content="1"/>
+    <meta name="dtb:totalPageCount" content="0"/>
+    <meta name="dtb:maxPageNumber" content="0"/>
+</head>
+<docTitle><text>${metadata.title}</text></docTitle>
+<docAuthor><text>${metadata.author}</text></docAuthor>
+<navMap>
+    ${tocItems}
+</navMap>
+</ncx>`);
+                    
+                    // Crea il file content.opf
+                    oebps.file("content.opf", `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">
+<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="bookid">${metadata.identifier}</dc:identifier>
+    <dc:title>${metadata.title}</dc:title>
+    <dc:creator>${metadata.author}</dc:creator>
+    <dc:language>${metadata.language}</dc:language>
+    ${metadata.publisher ? `<dc:publisher>${metadata.publisher}</dc:publisher>` : ''}
+    ${metadata.date ? `<dc:date>${metadata.date}</dc:date>` : ''}
+</metadata>
+<manifest>
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+    ${manifestItems}
+</manifest>
+<spine toc="ncx">
+    ${spineItems}
+</spine>
+</package>`);
+                    
+                    // Genera e scarica il file EPUB
+                    zip.generateAsync({type:"blob"}, (metadata) => {
+                        document.getElementById('progressBar').style.width = metadata.percent.toFixed(0) + '%';
+                        document.getElementById('progressBar').innerText = metadata.percent.toFixed(0) + '%';
+                    }).then(function(content) {
+                        const a = document.createElement("a");
+                        a.href = URL.createObjectURL(content);
+                        a.download = metadata.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() + ".epub";
+                        a.click();
+                        document.getElementById('progressContainer').style.display = 'none';
+                    });
+                } catch (error) {
+                    console.error('Errore durante la creazione dell\'EPUB:', error);
+                    alert('Si è verificato un errore durante la creazione dell\'EPUB: ' + error.message);
+                    document.getElementById('progressContainer').style.display = 'none';
+                }
+            }, 100);
+        }
+        
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+    </script>
+</body>
+</html>
