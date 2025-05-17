@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pdf-to-epub-v1';
+const CACHE_NAME = 'pdf-to-epub-v2';
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
@@ -34,6 +34,11 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
+    // Ignora le richieste di PDF per non memorizzarli nella cache
+    if (event.request.url.endsWith('.pdf')) {
+        return fetch(event.request);
+    }
+    
     event.respondWith(
         caches.match(event.request)
             .then(response => response || fetch(event.request))
