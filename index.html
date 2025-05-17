@@ -3,2158 +3,260 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#4285f4">
     <title>PDF to EPUB Converter</title>
+    <meta name="description" content="Converti PDF in EPUB ottimizzato per eBook">
+    <meta name="theme-color" content="#4a6fa5">
     <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --primary-color: #4285f4;
-            --secondary-color: #34a853;
-            --accent-color: #fbbc05;
-            --error-color: #ea4335;
-            --text-color: #202124;
-            --bg-color: #ffffff;
-            --card-bg: #f8f9fa;
-            --border-color: #dadce0;
+            --primary-color: #4a6fa5;
+            --secondary-color: #6b8cbc;
+            --background-color: #f5f7fa;
+            --text-color: #333;
+            --light-text: #666;
+            --border-color: #ddd;
+            --success-color: #4caf50;
+            --warning-color: #ff9800;
+            --error-color: #f44336;
         }
-
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --primary-color: #8ab4f8;
-                --secondary-color: #81c995;
-                --accent-color: #fdd663;
-                --error-color: #f28b82;
-                --text-color: #e8eaed;
-                --bg-color: #202124;
-                --card-bg: #303134;
-                --border-color: #5f6368;
-            }
-        }
-
+        
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
         }
-
+        
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             line-height: 1.6;
             color: var(--text-color);
-            background-color: var(--bg-color);
+            background-color: var(--background-color);
             padding: 20px;
-            max-width: 1200px;
+            max-width: 800px;
             margin: 0 auto;
         }
-
+        
         header {
             text-align: center;
-            margin-bottom: 2rem;
+            margin-bottom: 30px;
+            padding: 20px 0;
         }
-
+        
         h1 {
             color: var(--primary-color);
-            margin-bottom: 0.5rem;
-        }
-
-        .app-container {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .card {
-            background: var(--card-bg);
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            border: 1px solid var(--border-color);
-        }
-
-        .steps-container {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .step {
-            opacity: 0.6;
-            transition: opacity 0.3s;
-        }
-
-        .step.active {
-            opacity: 1;
-        }
-
-        .step-header {
-            display: flex;
-            align-items: center;
-            gap: 10px;
             margin-bottom: 10px;
         }
-
-        .step-number {
-            background-color: var(--primary-color);
-            color: white;
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-weight: bold;
+        
+        .description {
+            color: var(--light-text);
+            margin-bottom: 20px;
         }
-
-        .step-title {
-            font-size: 1.2rem;
-            font-weight: 600;
+        
+        .upload-container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            margin-bottom: 20px;
+            text-align: center;
         }
-
-        button {
+        
+        .drop-area {
+            border: 2px dashed var(--border-color);
+            border-radius: 5px;
+            padding: 40px;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .drop-area.highlight {
+            border-color: var(--primary-color);
+            background-color: rgba(74, 111, 165, 0.05);
+        }
+        
+        .drop-area i {
+            font-size: 48px;
+            color: var(--primary-color);
+            margin-bottom: 15px;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .btn {
             background-color: var(--primary-color);
             color: white;
             border: none;
-            padding: 10px 15px;
-            border-radius: 4px;
+            padding: 12px 24px;
+            border-radius: 5px;
             cursor: pointer;
-            font-size: 1rem;
+            font-size: 16px;
             transition: background-color 0.3s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
-
-        button:hover {
-            background-color: var(--primary-color);
-            opacity: 0.9;
+        
+        .btn:hover {
+            background-color: var(--secondary-color);
         }
-
-        button:disabled {
+        
+        .btn i {
+            margin-right: 8px;
+        }
+        
+        .btn:disabled {
             background-color: var(--border-color);
             cursor: not-allowed;
         }
-
-        .file-upload {
-            border: 2px dashed var(--border-color);
-            border-radius: 8px;
-            padding: 30px;
-            text-align: center;
-            cursor: pointer;
-            transition: border-color 0.3s;
+        
+        .options {
+            margin: 20px 0;
+            text-align: left;
         }
-
-        .file-upload:hover {
-            border-color: var(--primary-color);
-        }
-
-        .file-upload input {
-            display: none;
-        }
-
-        .text-editor {
-            width: 100%;
-            min-height: 400px;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            padding: 15px;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 14px;
-            resize: vertical;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-        }
-
-        .options-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 15px;
+        
+        .option-group {
             margin-bottom: 15px;
         }
-
-        .option-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
+        
+        .option-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
         }
-
+        
+        .option-group input[type="checkbox"] {
+            margin-right: 10px;
+        }
+        
         .progress-container {
-            margin-top: 10px;
-            width: 100%;
+            display: none;
+            margin-top: 20px;
+        }
+        
+        .progress-bar {
+            height: 10px;
             background-color: var(--border-color);
-            border-radius: 4px;
+            border-radius: 5px;
+            margin-bottom: 10px;
             overflow: hidden;
         }
-
-        .progress-bar {
-            height: 5px;
+        
+        .progress {
+            height: 100%;
             background-color: var(--primary-color);
             width: 0%;
             transition: width 0.3s;
         }
-
-        .metadata-grid {
-            display: grid;
-            grid-template-columns: auto 1fr;
-            gap: 10px 15px;
-            margin-bottom: 15px;
-        }
-
-        .metadata-grid label {
-            font-weight: 600;
-        }
-
-        .metadata-grid input, .metadata-grid textarea {
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            padding: 8px;
-            font-family: inherit;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-        }
-
-        .chapter-container {
-            margin-bottom: 15px;
-        }
-
-        .chapter-list {
-            max-height: 200px;
-            overflow-y: auto;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            margin-bottom: 10px;
-        }
-
-        .chapter-item {
-            padding: 8px 12px;
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .chapter-item:last-child {
-            border-bottom: none;
-        }
-
-        .chapter-actions {
-            display: flex;
-            gap: 5px;
-        }
-
-        .small-button {
-            padding: 5px 10px;
-            font-size: 0.8rem;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-
-        .modal-content {
-            background-color: var(--bg-color);
-            padding: 20px;
-            border-radius: 8px;
-            max-width: 500px;
-            width: 90%;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .close-button {
-            background: none;
-            border: none;
-            color: var(--text-color);
-            font-size: 1.5rem;
-            cursor: pointer;
-        }
-
-        .notification {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 15px 20px;
-            background-color: var(--primary-color);
-            color: white;
-            border-radius: 4px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            opacity: 0;
-            transition: opacity 0.3s;
-            z-index: 1000;
-        }
-
-        .notification.show {
-            opacity: 1;
-        }
-
-        .notification.error {
-            background-color: var(--error-color);
-        }
-
-        .install-prompt {
-            display: none;
-            margin-bottom: 15px;
-            padding: 10px;
-            background-color: var(--accent-color);
-            color: var(--text-color);
-            border-radius: 4px;
+        
+        .status {
+            font-size: 14px;
+            color: var(--light-text);
             text-align: center;
         }
-
-        @media (max-width: 768px) {
-            .options-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .split-editor {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .chapter-preview {
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            padding: 15px;
-            background-color: var(--card-bg);
-            max-height: 200px;
-            overflow-y: auto;
-        }
-
-        .loading-spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255,255,255,.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 1s ease-in-out infinite;
-            margin-right: 10px;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .button-with-spinner {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .spinner-visible {
-            display: inline-block;
-        }
-
-        .spinner-hidden {
+        
+        .result {
             display: none;
+            text-align: center;
+            margin-top: 20px;
         }
-
-        .content-type-selector {
-            margin-bottom: 15px;
+        
+        .result a {
+            display: inline-block;
+            margin-top: 15px;
         }
-
-        .section-type {
-            margin: 5px 0;
+        
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            color: var(--light-text);
+            font-size: 14px;
+        }
+        
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            
+            .upload-container {
+                padding: 20px;
+            }
+            
+            .drop-area {
+                padding: 30px 20px;
+            }
         }
     </style>
 </head>
 <body>
     <header>
-        <h1>PDF to EPUB Converter</h1>
-        <p>Converti facilmente i tuoi file PDF in EPUB con supporto per la modifica del testo estratto</p>
+        <h1><i class="fas fa-book-open"></i> PDF to EPUB Converter</h1>
+        <p class="description">Converti i tuoi PDF in eBook EPUB ottimizzati per la lettura</p>
     </header>
-
-    <div class="install-prompt" id="installPrompt">
-        <p>Puoi installare questa applicazione sul tuo dispositivo per usarla offline!</p>
-        <button id="installButton">Installa App</button>
-    </div>
-
-    <div class="app-container">
-        <div class="steps-container">
-            <div class="step active" id="step1">
-                <div class="card">
-                    <div class="step-header">
-                        <div class="step-number">1</div>
-                        <div class="step-title">Carica il tuo file PDF</div>
-                    </div>
-                    <div class="file-upload" id="dropArea">
-                        <input type="file" id="pdfFile" accept=".pdf" />
-                        <p>Trascina qui il tuo file PDF o clicca per selezionarlo</p>
-                        <p><small>Dimensione massima: 100MB</small></p>
-                    </div>
-                    <div id="fileInfo" style="margin-top: 10px; display: none;">
-                        <p>File: <span id="fileName"></span></p>
-                        <p>Dimensione: <span id="fileSize"></span></p>
-                    </div>
-                    <div class="progress-container" id="progressContainer" style="display: none;">
-                        <div class="progress-bar" id="progressBar"></div>
-                    </div>
+    
+    <main>
+        <div class="upload-container">
+            <div id="dropArea" class="drop-area">
+                <i class="fas fa-file-pdf"></i>
+                <h3>Trascina il tuo PDF qui</h3>
+                <p>oppure</p>
+                <button id="selectFileBtn" class="btn"><i class="fas fa-folder-open"></i> Seleziona file</button>
+                <input type="file" id="fileInput" class="file-input" accept=".pdf">
+            </div>
+            
+            <div class="options">
+                <div class="option-group">
+                    <label>
+                        <input type="checkbox" id="removePageNumbers" checked>
+                        Rimuovi numeri di pagina
+                    </label>
+                </div>
+                <div class="option-group">
+                    <label>
+                        <input type="checkbox" id="removeHeaders" checked>
+                        Rimuovi intestazioni ripetute
+                    </label>
+                </div>
+                <div class="option-group">
+                    <label>
+                        <input type="checkbox" id="reconstructText" checked>
+                        Ricostruisci flusso del testo
+                    </label>
+                </div>
+                <div class="option-group">
+                    <label>
+                        <input type="checkbox" id="detectChapters" checked>
+                        Riconosci capitoli e crea indice
+                    </label>
                 </div>
             </div>
-
-            <div class="step" id="step2">
-                <div class="card">
-                    <div class="step-header">
-                        <div class="step-number">2</div>
-                        <div class="step-title">Analizza e modifica il testo estratto</div>
-                    </div>
-                    <div class="options-grid">
-                        <div class="option-item">
-                            <input type="checkbox" id="removePageNumbers" checked />
-                            <label for="removePageNumbers">Rimuovi numeri di pagina</label>
-                        </div>
-                        <div class="option-item">
-                            <input type="checkbox" id="removeHeadersFooters" checked />
-                            <label for="removeHeadersFooters">Rimuovi intestazioni/piè di pagina</label>
-                        </div>
-                        <div class="option-item">
-                            <input type="checkbox" id="detectChapters" checked />
-                            <label for="detectChapters">Rileva capitoli automaticamente</label>
-                        </div>
-                        <div class="option-item">
-                            <input type="checkbox" id="recognizeMetadata" checked />
-                            <label for="recognizeMetadata">Riconosci metadati (titolo, autore)</label>
-                        </div>
-                        <div class="option-item">
-                            <input type="checkbox" id="fixHyphenation" checked />
-                            <label for="fixHyphenation">Ripara sillabazione</label>
-                        </div>
-<div class="option-item">
-    <input type="checkbox" id="smartLineBreaks" checked />
-    <label for="smartLineBreaks">Rigenerazione paragrafi (mantiene solo punteggiatura)</label>
-</div>
-                        <div class="option-item">
-                            <input type="checkbox" id="detectSpecialSections" checked />
-                            <label for="detectSpecialSections">Rileva sezioni speciali</label>
-                        </div>
-                        <div class="option-item">
-                            <input type="checkbox" id="chapterPageBreaks" checked />
-                            <label for="chapterPageBreaks">Interruzioni di pagina solo ai capitoli</label>
-                        </div>
-                    </div>
-                    <button id="extractTextBtn" disabled>
-                        <span class="loading-spinner spinner-hidden" id="extractSpinner"></span>
-                        Estrai testo dal PDF
-                    </button>
+            
+            <button id="convertBtn" class="btn" disabled><i class="fas fa-exchange-alt"></i> Converti in EPUB</button>
+            
+            <div id="progressContainer" class="progress-container">
+                <div class="progress-bar">
+                    <div id="progress" class="progress"></div>
                 </div>
+                <p id="status" class="status">Elaborazione in corso...</p>
             </div>
-
-            <div class="step" id="step3">
-                <div class="card">
-                    <div class="step-header">
-                        <div class="step-number">3</div>
-                        <div class="step-title">Metadati e struttura</div>
-                    </div>
-                    <div class="metadata-grid">
-                        <label for="bookTitle">Titolo:</label>
-                        <input type="text" id="bookTitle" placeholder="Titolo del libro" />
-                        
-                        <label for="bookAuthor">Autore:</label>
-                        <input type="text" id="bookAuthor" placeholder="Autore del libro" />
-                        
-                        <label for="bookLanguage">Lingua:</label>
-                        <input type="text" id="bookLanguage" value="it" placeholder="Codice lingua (es. it, en)" />
-                        
-                        <label for="bookDescription">Descrizione:</label>
-                        <textarea id="bookDescription" rows="3" placeholder="Descrizione del libro"></textarea>
-                    </div>
-                    
-                    <div class="chapter-container">
-                        <h3>Sezioni rilevate:</h3>
-                        <div class="chapter-list" id="chaptersList">
-                            <!-- I capitoli verranno aggiunti qui dinamicamente -->
-                        </div>
-                        <button id="addChapterBtn" class="small-button">Aggiungi sezione</button>
-                    </div>
-                    
-                    <button id="proceedToEditBtn" disabled>Procedi alla modifica del testo</button>
-                </div>
-            </div>
-
-            <div class="step" id="step4">
-                <div class="card">
-                    <div class="step-header">
-                        <div class="step-number">4</div>
-                        <div class="step-title">Modifica il testo</div>
-                    </div>
-                    <div class="split-editor">
-                        <div>
-                            <label for="chapterSelect">Seleziona sezione:</label>
-                            <select id="chapterSelect">
-                                <!-- Le opzioni verranno aggiunte qui dinamicamente -->
-                            </select>
-                            <div class="content-type-selector" id="contentTypeSelector">
-                                <label>Tipo di contenuto:</label>
-                                <div class="section-type">
-                                    <input type="radio" id="typeNormal" name="contentType" value="normal" checked>
-                                    <label for="typeNormal">Testo normale</label>
-                                </div>
-                                <div class="section-type">
-                                    <input type="radio" id="typeChapter" name="contentType" value="chapter">
-                                    <label for="typeChapter">Capitolo</label>
-                                </div>
-                                <div class="section-type">
-                                    <input type="radio" id="typeTitle" name="contentType" value="title">
-                                    <label for="typeTitle">Titolo</label>
-                                </div>
-                                <div class="section-type">
-                                    <input type="radio" id="typeColophon" name="contentType" value="colophon">
-                                    <label for="typeColophon">Colophon</label>
-                                </div>
-                                <div class="section-type">
-                                    <input type="radio" id="typeDedication" name="contentType" value="dedication">
-                                    <label for="typeDedication">Dedica</label>
-                                </div>
-                                <div class="section-type">
-                                    <input type="radio" id="typeQuote" name="contentType" value="quote">
-                                    <label for="typeQuote">Citazione</label>
-                                </div>
-                            </div>
-                        </div>
-                        <textarea id="textEditor" class="text-editor" placeholder="Il testo estratto apparirà qui..."></textarea>
-                    </div>
-                    <button id="saveTextBtn" disabled>Salva modifiche</button>
-                    <button id="generateEpubBtn" style="margin-top: 10px; background-color: var(--secondary-color);">Genera EPUB</button>
-                </div>
-            </div>
-
-            <div class="step" id="step5">
-                <div class="card">
-                    <div class="step-header">
-                        <div class="step-number">5</div>
-                        <div class="step-title">Download EPUB</div>
-                    </div>
-                    <div style="text-align: center; padding: 20px;">
-                        <p>Il tuo file EPUB è pronto!</p>
-                        <button id="downloadEpubBtn" style="margin-top: 15px; background-color: var(--secondary-color);">
-                            <span class="loading-spinner spinner-hidden" id="generateSpinner"></span>
-                            Scarica EPUB
-                        </button>
-                        <p style="margin-top: 15px;">
-                            <button id="startOverBtn" style="background-color: var(--primary-color);">Converti un altro PDF</button>
-                        </p>
-                    </div>
-                </div>
+            
+            <div id="result" class="result">
+                <h3><i class="fas fa-check-circle" style="color: var(--success-color);"></i> Conversione completata!</h3>
+                <a id="downloadLink" href="#" class="btn"><i class="fas fa-download"></i> Scarica EPUB</a>
             </div>
         </div>
-    </div>
-
-    <!-- Modal per modificare il capitolo -->
-    <div class="modal" id="chapterModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Modifica sezione</h3>
-                <button class="close-button" id="closeChapterModal">&times;</button>
-            </div>
-            <div>
-                <div style="margin-bottom: 15px;">
-                    <label for="chapterTitle">Titolo della sezione:</label>
-                    <input type="text" id="chapterTitle" style="width: 100%; margin-top: 5px; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;" placeholder="Titolo della sezione" />
-                </div>
-                <div style="margin-bottom: 15px;">
-                    <label for="chapterStartPosition">Posizione di inizio (carattere):</label>
-                    <input type="number" id="chapterStartPosition" style="width: 100%; margin-top: 5px; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;" min="0" />
-                </div>
-                <div style="margin-bottom: 15px;">
-                    <label for="sectionType">Tipo di sezione:</label>
-                    <select id="sectionType" style="width: 100%; margin-top: 5px; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
-                        <option value="normal">Testo normale</option>
-                        <option value="chapter">Capitolo</option>
-                        <option value="title">Titolo</option>
-                        <option value="colophon">Colophon</option>
-                        <option value="dedication">Dedica</option>
-                        <option value="quote">Citazione</option>
-                    </select>
-                </div>
-                <button id="saveChapterBtn" style="width: 100%;">Salva sezione</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Notifica -->
-    <div class="notification" id="notification"></div>
-
-    <!-- Scripts -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.10.111/pdf.min.js"></script>
+    </main>
+    
+    <footer>
+        <p>Questa applicazione funziona offline dopo il primo utilizzo</p>
+    </footer>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script>
-        // Imposta il worker per PDF.js
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.10.111/pdf.worker.min.js';
-
-        // Variabili globali
-        let currentPdfFile = null;
-        let extractedText = '';
-        let pdfDocument = null;
-        let chapters = [];
-        let currentEditingChapterIndex = -1;
-        let epubBlob = null;
-
-        // DOM Elements
-        const dropArea = document.getElementById('dropArea');
-        const pdfFileInput = document.getElementById('pdfFile');
-        const fileInfo = document.getElementById('fileInfo');
-        const fileName = document.getElementById('fileName');
-        const fileSize = document.getElementById('fileSize');
-        const progressContainer = document.getElementById('progressContainer');
-        const progressBar = document.getElementById('progressBar');
-        const extractTextBtn = document.getElementById('extractTextBtn');
-        const textEditor = document.getElementById('textEditor');
-        const saveTextBtn = document.getElementById('saveTextBtn');
-        const generateEpubBtn = document.getElementById('generateEpubBtn');
-        const downloadEpubBtn = document.getElementById('downloadEpubBtn');
-        const startOverBtn = document.getElementById('startOverBtn');
-        const proceedToEditBtn = document.getElementById('proceedToEditBtn');
-        const removePageNumbers = document.getElementById('removePageNumbers');
-        const removeHeadersFooters = document.getElementById('removeHeadersFooters');
-        const detectChapters = document.getElementById('detectChapters');
-        const fixHyphenation = document.getElementById('fixHyphenation');
-        const smartLineBreaks = document.getElementById('smartLineBreaks');
-        const detectSpecialSections = document.getElementById('detectSpecialSections');
-        const chapterPageBreaks = document.getElementById('chapterPageBreaks');
-        const bookTitle = document.getElementById('bookTitle');
-        const bookAuthor = document.getElementById('bookAuthor');
-        const bookLanguage = document.getElementById('bookLanguage');
-        const bookDescription = document.getElementById('bookDescription');
-        const chaptersList = document.getElementById('chaptersList');
-        const addChapterBtn = document.getElementById('addChapterBtn');
-        const chapterSelect = document.getElementById('chapterSelect');
-        const contentTypeSelector = document.getElementById('contentTypeSelector');
-        const chapterModal = document.getElementById('chapterModal');
-        const chapterTitle = document.getElementById('chapterTitle');
-        const chapterStartPosition = document.getElementById('chapterStartPosition');
-        const sectionType = document.getElementById('sectionType');
-        const saveChapterBtn = document.getElementById('saveChapterBtn');
-        const closeChapterModal = document.getElementById('closeChapterModal');
-        const notification = document.getElementById('notification');
-        const installPrompt = document.getElementById('installPrompt');
-        const installButton = document.getElementById('installButton');
-        const extractSpinner = document.getElementById('extractSpinner');
-        const generateSpinner = document.getElementById('generateSpinner');
-
-        // Step elements
-        const steps = [
-            document.getElementById('step1'),
-            document.getElementById('step2'),
-            document.getElementById('step3'),
-            document.getElementById('step4'),
-            document.getElementById('step5')
-        ];
-
-        // Inizializzazione
-        document.addEventListener('DOMContentLoaded', function() {
-            // Gestione del drag and drop
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                dropArea.addEventListener(eventName, preventDefaults, false);
-            });
-            
-            function preventDefaults(e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-            
-            ['dragenter', 'dragover'].forEach(eventName => {
-                dropArea.addEventListener(eventName, highlight, false);
-            });
-            
-            ['dragleave', 'drop'].forEach(eventName => {
-                dropArea.addEventListener(eventName, unhighlight, false);
-            });
-            
-            function highlight() {
-                dropArea.style.borderColor = 'var(--primary-color)';
-                dropArea.style.backgroundColor = 'rgba(66, 133, 244, 0.1)';
-            }
-            
-            function unhighlight() {
-                dropArea.style.borderColor = 'var(--border-color)';
-                dropArea.style.backgroundColor = '';
-            }
-            
-            dropArea.addEventListener('drop', handleDrop, false);
-            
-            function handleDrop(e) {
-                const dt = e.dataTransfer;
-                const files = dt.files;
-                handleFiles(files);
-            }
-            
-            // Gestione del click su area di upload
-            dropArea.addEventListener('click', function() {
-                pdfFileInput.click();
-            });
-            
-            pdfFileInput.addEventListener('change', function() {
-                handleFiles(this.files);
-            });
-            
-            // Event listeners per i pulsanti
-            extractTextBtn.addEventListener('click', extractTextFromPdf);
-            proceedToEditBtn.addEventListener('click', goToEditStep);
-            saveTextBtn.addEventListener('click', saveTextChanges);
-            generateEpubBtn.addEventListener('click', generateEpub);
-            downloadEpubBtn.addEventListener('click', downloadEpub);
-            startOverBtn.addEventListener('click', resetApp);
-            addChapterBtn.addEventListener('click', addNewChapter);
-            saveChapterBtn.addEventListener('click', saveChapterChanges);
-            closeChapterModal.addEventListener('click', closeModal);
-            chapterSelect.addEventListener('change', loadChapterContent);
-            
-            // Listener per il cambio di tipo di contenuto
-            document.querySelectorAll('input[name="contentType"]').forEach(radio => {
-                radio.addEventListener('change', function() {
-                    updateContentType(this.value);
-                });
-            });
-            
-            // Inizializza come PWA
-            initPwa();
-        });
-
-        // Gestione PWA
-        let deferredPrompt;
-
-        function initPwa() {
-            // Registra il service worker
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('service-worker.js')
-                    .then(reg => console.log('Service Worker registrato', reg))
-                    .catch(err => console.log('Errore nella registrazione del Service Worker', err));
-            }
-
-            // Gestisci l'evento di installazione
-            window.addEventListener('beforeinstallprompt', (e) => {
-                e.preventDefault();
-                deferredPrompt = e;
-                installPrompt.style.display = 'block';
-            });
-
-            installButton.addEventListener('click', () => {
-                if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    deferredPrompt.userChoice.then((choiceResult) => {
-                        if (choiceResult.outcome === 'accepted') {
-                            console.log('Utente ha accettato di installare la PWA');
-                        }
-                        deferredPrompt = null;
-                        installPrompt.style.display = 'none';
-                    });
-                }
-            });
-
-            window.addEventListener('appinstalled', (evt) => {
-                console.log('App installata');
-                installPrompt.style.display = 'none';
-            });
-        }
-
-        // Gestione dei file caricati
-        function handleFiles(files) {
-            if (files.length === 0) return;
-            
-            const file = files[0];
-            
-            // Verifica se è un PDF
-            if (file.type !== 'application/pdf') {
-                showNotification('Per favore, carica un file PDF valido.', true);
-                return;
-            }
-            
-            // Verifica la dimensione (100MB max)
-            if (file.size > 100 * 1024 * 1024) {
-                showNotification('Il file è troppo grande. La dimensione massima è di 100MB.', true);
-                return;
-            }
-            
-            // Mostra le informazioni sul file
-            currentPdfFile = file;
-            fileName.textContent = file.name;
-            fileSize.textContent = formatFileSize(file.size);
-            fileInfo.style.display = 'block';
-            
-            // Abilita il pulsante per estrarre il testo
-            extractTextBtn.disabled = false;
-            
-            // Imposta il titolo del libro dal nome del file
-            const fileNameWithoutExt = file.name.replace('.pdf', '');
-            bookTitle.value = fileNameWithoutExt;
-            
-            // Attiva il passo 2
-            goToStep(1);
-        }
-
-      // Funzione alternativa per estrarre testo da una pagina
-async function getPageText(pageObj) {
-    try {
-        const tokenizedText = await pageObj.getTextContent();
-        
-        if (!tokenizedText.items || tokenizedText.items.length === 0) {
-            return '';
-        }
-        
-        // Metodo 1: Concatena semplicemente tutti gli elementi di testo
-        let pageText = '';
-        for (const item of tokenizedText.items) {
-            if (item.str) {
-                pageText += item.str + ' ';
-            }
-        }
-        
-        return pageText.trim();
-    } catch (error) {
-        console.error('Errore nell\'estrazione del testo della pagina:', error);
-        return '';
-    }
-}
-// Estrazione del testo dal PDF
-async function extractTextFromPdf() {
-    if (!currentPdfFile) return;
-    
-    try {
-        // Mostra il loader
-        extractTextBtn.disabled = true;
-        extractSpinner.classList.remove('spinner-hidden');
-        extractSpinner.classList.add('spinner-visible');
-        
-        // Mostra la barra di progresso
-        progressContainer.style.display = 'block';
-        progressBar.style.width = '0%';
-        
-        // Carica il PDF
-        const arrayBuffer = await readFileAsArrayBuffer(currentPdfFile);
-        pdfDocument = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        
-        const numPages = pdfDocument.numPages;
-        let fullText = '';
-        
-        // Estrai il testo da ogni pagina
-        for (let i = 1; i <= numPages; i++) {
-            try {
-                // Ottieni la pagina
-                const page = await pdfDocument.getPage(i);
-                // Estrai il testo usando getTextContent()
-                const textContent = await page.getTextContent();
-                
-                let pageText = '';
-                
-                // Estrai solo il testo ignorando la formattazione
-                for (const item of textContent.items) {
-                    if (item.str) {
-                        pageText += item.str + ' ';
-                    }
-                }
-                
-                // Applica la pulizia di base del testo
-                pageText = pageText.replace(/\s+/g, ' ').trim();
-                
-                // Aggiungi interruzioni di paragrafo basate sulla struttura tipica di un libro
-                pageText = pageText.replace(/\. /g, '.\n');
-                pageText = pageText.replace(/\! /g, '!\n');
-                pageText = pageText.replace(/\? /g, '?\n');
-                
-                // Aggiungi il testo della pagina al testo completo
-                fullText += pageText + '\n\n';
-                
-                // Stampa un'anteprima del testo estratto da questa pagina
-                console.log(`Pagina ${i}/${numPages} - Estratti ${pageText.length} caratteri`);
-                if (pageText.length > 0) {
-                    console.log(`Inizio: ${pageText.substring(0, Math.min(50, pageText.length))}`);
-                    console.log(`Fine: ${pageText.substring(Math.max(0, pageText.length - 50))}`);
-                }
-                
-                // Aggiorna la barra di progresso
-                const progress = (i / numPages) * 100;
-                progressBar.style.width = `${progress}%`;
-            } catch (pageError) {
-                console.error(`Errore nell'estrazione della pagina ${i}:`, pageError);
-                // Continua con la pagina successiva anche se questa pagina fallisce
-            }
-        }
-        
-        // Pulizia finale del testo
-        fullText = fullText.replace(/\n{3,}/g, '\n\n');
-        fullText = fullText.trim();
-        
-        // Stampa la lunghezza del testo estratto
-        console.log(`Testo totale estratto: ${fullText.length} caratteri`);
-        if (fullText.length > 0) {
-            console.log(`Inizio: ${fullText.substring(0, Math.min(100, fullText.length))}...`);
-            console.log(`Fine: ...${fullText.substring(Math.max(0, fullText.length - 100))}`);
-        }
-        
-        // Salva il testo estratto
-        extractedText = fullText;
-        
-        // Analizza il testo per i metadati e i capitoli
-        analyzeText(extractedText);
-        
-        // Mostra il passo 3
-        goToStep(2);
-        
-        // Abilita il pulsante per procedere
-        proceedToEditBtn.disabled = false;
-        
-    } catch (error) {
-        console.error('Errore nell\'estrazione del testo:', error);
-        showNotification('Si è verificato un errore durante l\'estrazione del testo. ' + error.message, true);
-    } finally {
-        // Nascondi il loader
-        extractSpinner.classList.remove('spinner-visible');
-        extractSpinner.classList.add('spinner-hidden');
-        extractTextBtn.disabled = false;
-    }
-}
-
-       // Elabora il testo estratto applicando tutte le opzioni di pulizia
-// Elabora il testo estratto applicando tutte le opzioni di pulizia
-function processExtractedText(pageContents) {
-    if (pageContents.length === 0) {
-        return '';
-    }
-    
-    let processedText = '';
-    let previousPageEndedWithHyphen = false;
-    let previousPageLastLine = '';
-    
-    for (let i = 0; i < pageContents.length; i++) {
-        let pageText = pageContents[i].content;
-        
-        // Verifica che il testo della pagina non sia vuoto
-        if (!pageText || pageText.trim() === '') {
-            continue;
-        }
-        
-        let pageLines = pageText.split('\n');
-        
-        // Gestisci l'hyphenation fra le pagine
-        if (previousPageEndedWithHyphen && fixHyphenation.checked) {
-            if (pageLines.length > 0 && pageLines[0].trim()) {
-                // Rimuovi il trattino e unisci con la prima riga della pagina corrente
-                previousPageLastLine = previousPageLastLine.substring(0, previousPageLastLine.length - 1);
-                pageLines[0] = previousPageLastLine + pageLines[0];
-                
-                // Aggiorna il testo della pagina
-                pageText = pageLines.join('\n');
-                
-                // Aggiorna anche il testo elaborato
-                if (processedText.endsWith('-\n')) {
-                    processedText = processedText.substring(0, processedText.length - 2);
-                }
-            }
-        }
-        
-        // Controlla se l'ultima riga della pagina termina con un trattino
-        if (pageLines.length > 0) {
-            previousPageLastLine = pageLines[pageLines.length - 1];
-            previousPageEndedWithHyphen = previousPageLastLine.endsWith('-');
-        } else {
-            previousPageEndedWithHyphen = false;
-            previousPageLastLine = '';
-        }
-        
-        // Gestisci interruzioni di riga intelligenti
-        if (smartLineBreaks.checked) {
-            pageText = handleSmartLineBreaks(pageText);
-        }
-        
-        // Aggiungi il testo della pagina al testo elaborato
-        // Rimuovi sempre le interruzioni di pagina (verranno aggiunte solo all'inizio dei capitoli tramite CSS)
-        if (processedText.length === 0) {
-            processedText = pageText;
-        } else {
-            processedText += processedText.endsWith('\n') ? '' : '\n';
-            processedText += pageText;
-        }
-    }
-    
-    // Riparazione della sillabazione all'interno delle pagine
-    if (fixHyphenation.checked) {
-        processedText = fixInternalHyphenation(processedText);
-    }
-    
-    // Pulizia finale
-    processedText = cleanExtractedText(processedText);
-    
-    return processedText;
-}
-
-       // Gestisci interruzioni di riga intelligenti - mantieni solo quelle dopo punteggiatura
-       function handleSmartLineBreaks(text) {
-           const lines = text.split('\n');
-           let result = '';
-           
-           for (let i = 0; i < lines.length; i++) {
-               const line = lines[i].trim();
-               
-               if (i > 0) {
-                   const prevLine = lines[i-1].trim();
-                   
-                   // Mantieni l'interruzione di riga solo se la linea precedente termina con punteggiatura
-                   if (/[.!?:]$/.test(prevLine)) {
-                       result += '\n' + line;
-                   }
-                   // Altrimenti, aggiungi uno spazio tra le righe
-                   else {
-                       // Evita spazi doppi
-                       if (result.endsWith(' ')) {
-                           result += line;
-                       } else {
-                           result += ' ' + line;
-                       }
-                   }
-               } else {
-                   result += line;
-               }
-           }
-           
-           return result;
-       }
-
-       // Riparazione della sillabazione all'interno di una pagina
-       function fixInternalHyphenation(text) {
-           // Pattern: una riga termina con un trattino e la successiva inizia con una lettera minuscola
-           const hyphenPattern = /(\w+)-\n(\w+)/g;
-           
-           // Sostituisce il pattern unendo le parole sillabate
-           return text.replace(hyphenPattern, (match, part1, part2) => {
-               // Verifica se la seconda parte inizia con una lettera minuscola (probabile continuazione)
-               if (/^[a-zàèìòùáéíóúäëïöüâêîôû]/.test(part2)) {
-                   return part1 + part2;
-               }
-               // Altrimenti mantieni il trattino (potrebbe essere un trattino significativo)
-               return part1 + '-\n' + part2;
-           });
-       }
-
-       // Pulizia del testo della pagina
-       function cleanPageText(text, pageNum, totalPages) {
-           if (!removePageNumbers.checked && !removeHeadersFooters.checked) {
-               return text;
-           }
-           
-           // Dividi in linee
-           const lines = text.split('\n');
-           
-           // Filtra le linee
-           const filteredLines = lines.filter(line => {
-               // Rimuovi numeri di pagina
-               if (removePageNumbers.checked) {
-                   // Numeri di pagina isolati
-                   if (/^\s*\d+\s*$/.test(line)) {
-                       return false;
-                   }
-                   
-                   // Numeri di pagina con formati comuni (Pagina X, Page X, X/Y, ecc.)
-                   if (/^\s*(Page|Pagina|p\.)\s*\d+\s*$/.test(line) || 
-                       new RegExp(`^\\s*${pageNum}\\s*/\\s*${totalPages}\\s*$`).test(line)) {
-                       return false;
-                   }
-               }
-               
-               // Rimuovi intestazioni e piè di pagina
-               if (removeHeadersFooters.checked) {
-                   // Considera le prime e ultime righe come potenziali intestazioni/piè di pagina
-                   if (lines.length > 3) {
-                       // Se è la prima o l'ultima riga della pagina
-                       if (lines.indexOf(line) === 0 || lines.indexOf(line) === lines.length - 1) {
-                           // Verifica se la riga contiene titoli comuni di capitoli o intestazioni
-                           if (!/^(capitolo|chapter|parte|part|sezione|section)\s+(\d+|[IVXLCDM]+)/i.test(line)) {
-                               // Verifica se la riga contiene solo il titolo del libro
-                               if (bookTitle.value && line.trim() === bookTitle.value.trim()) {
-                                   return false;
-                               }
-                               
-                               // Verifica se la riga contiene l'autore
-                               if (bookAuthor.value && line.trim() === bookAuthor.value.trim()) {
-                                   return false;
-                               }
-                               
-                               // Verifica se la riga è molto breve (probabile intestazione/piè di pagina)
-                               if (line.trim().length < 30) {
-                                   return false;
-                               }
-                           }
-                       }
-                   }
-               }
-               
-               return true;
-           });
-           
-           return filteredLines.join('\n');
-       }
-
-       // Pulizia del testo estratto completo
-       function cleanExtractedText(text) {
-           // Rimuovi spazi bianchi multipli
-           let cleanText = text.replace(/ {2,}/g, ' ');
-           
-           // Rimuovi interruzioni di riga ripetute (più di 2)
-           cleanText = cleanText.replace(/\n{3,}/g, '\n\n');
-           
-           // Rimuovi spazi all'inizio e alla fine
-           cleanText = cleanText.trim();
-           
-           return cleanText;
-       }
-
-       // Analisi del testo per rilevare metadati e capitoli
-       function analyzeText(text) {
-           // Rileva il titolo e l'autore dal testo
-           if (detectSpecialSections.checked) {
-               detectFrontMatterSections(text);
-           }
-           
-           // Rileva capitoli se richiesto
-           if (detectChapters.checked) {
-               detectChaptersInText(text);
-           } else {
-               // Altrimenti crea un capitolo unico con tutto il testo
-               chapters = [{
-                   title: 'Intero documento',
-                   startPosition: 0,
-                   content: text,
-                   type: 'normal'
-               }];
-           }
-           
-           // Aggiorna l'UI con i capitoli
-           updateChaptersList();
-       }
-
-       // Rileva elementi del frontmatter (titolo, autore, colophon, ecc.)
-       function detectFrontMatterSections(text) {
-           // Rileva il titolo del libro
-           const titlePattern = /^\s*([A-Z][A-ZÀÈÌÒÙ\s',;:.]{4,60})\s*\n/m;
-           const titleMatch = text.match(titlePattern);
-           if (titleMatch && titleMatch.index < 500) {
-               const title = titleMatch[1].trim();
-               if (!bookTitle.value) {
-                   bookTitle.value = title;
-               }
-               
-               chapters.push({
-                   title: 'Titolo',
-                   startPosition: titleMatch.index,
-                   content: title,
-                   type: 'title'
-               });
-           }
-           
-           // Rileva dediche
-           const dedicationPattern = /^\s*(A|To|Dedicato a|Dedicated to)\s+([A-Za-z][a-zA-Zàèìòùé'\s,.]+)$/m;
-           const dedicationMatch = text.match(dedicationPattern);
-           if (dedicationMatch) {
-               const dedicationPos = text.indexOf(dedicationMatch[0]);
-               if (dedicationPos > -1) {
-                   let dedicationEnd = text.indexOf('\n\n', dedicationPos);
-                   if (dedicationEnd === -1) dedicationEnd = text.indexOf('\n', dedicationPos + dedicationMatch[0].length);
-                   if (dedicationEnd === -1) dedicationEnd = dedicationPos + dedicationMatch[0].length;
-                   
-                   const dedication = text.substring(dedicationPos, dedicationEnd).trim();
-                   
-                   chapters.push({
-                       title: 'Dedica',
-                       startPosition: dedicationPos,
-                       content: dedication,
-                       type: 'dedication'
-                   });
-               }
-           }
-           
-           // Rileva colophon
-           const colophonPattern = /(ISBN|edizione|editore|copyright|pubblicato da|printed by|©).*?([0-9]{4})/i;
-           const colophonMatch = text.match(colophonPattern);
-           if (colophonMatch) {
-               const colophonPos = text.indexOf(colophonMatch[0]);
-               if (colophonPos > -1) {
-                   let colophonStart = text.lastIndexOf('\n\n', colophonPos);
-                   if (colophonStart === -1) colophonStart = text.lastIndexOf('\n', colophonPos);
-                   if (colophonStart === -1) colophonStart = colophonPos;
-                   
-                   let colophonEnd = text.indexOf('\n\n', colophonPos);
-                   if (colophonEnd === -1) colophonEnd = text.indexOf('\n', colophonPos + colophonMatch[0].length);
-                   if (colophonEnd === -1) colophonEnd = colophonPos + colophonMatch[0].length + 100;
-                   colophonEnd = Math.min(colophonEnd, text.length);
-                   
-                   const colophon = text.substring(colophonStart, colophonEnd).trim();
-                   
-                   chapters.push({
-                       title: 'Colophon',
-                       startPosition: colophonStart,
-                       content: colophon,
-                       type: 'colophon'
-                   });
-               }
-           }
-           
-           // Rileva citazioni
-           const quotePattern = /^[\s>"].*?["—][\s\n]+—\s*[A-Z][a-zA-Zàèìòùé'\s,.]+$/m;
-           const quoteMatch = text.match(quotePattern);
-           if (quoteMatch) {
-               const quotePos = text.indexOf(quoteMatch[0]);
-               if (quotePos > -1) {
-                   let quoteStart = text.lastIndexOf('\n\n', quotePos);
-                   if (quoteStart === -1) quoteStart = text.lastIndexOf('\n', quotePos);
-                   if (quoteStart === -1) quoteStart = quotePos;
-                   
-                   let quoteEnd = text.indexOf('\n\n', quotePos);
-                   if (quoteEnd === -1) quoteEnd = text.indexOf('\n', quotePos + quoteMatch[0].length);
-                   if (quoteEnd === -1) quoteEnd = quotePos + quoteMatch[0].length;
-                   
-                   const quote = text.substring(quoteStart, quoteEnd).trim();
-                   
-                   chapters.push({
-                       title: 'Citazione',
-                       startPosition: quoteStart,
-                       content: quote,
-                       type: 'quote'
-                   });
-               }
-           }
-       }
-
-   // Rilevamento dei capitoli nel testo
-// Rilevamento dei capitoli nel testo
-function detectChaptersInText(text) {
-    // Assicuriamoci che il testo non sia vuoto
-    if (!text || text.length === 0) {
-        chapters = [{
-            title: 'Intero documento',
-            startPosition: 0,
-            content: text || '',
-            type: 'normal'
-        }];
-        return;
-    }
-    
-    // Inizia con un array vuoto (le sezioni speciali potrebbero essere già state aggiunte)
-    if (chapters.length === 0) {
-        chapters = [];
-    }
-    
-    // Approccio fallback: dividi il testo in sezioni di dimensioni gestibili
-    // Questo garantisce che almeno abbiamo qualche capitolo
-    const sectionSize = 5000; // Circa 2-3 pagine di testo
-    let numSections = Math.max(1, Math.ceil(text.length / sectionSize));
-    
-    // Se il testo è molto lungo, crea automaticamente delle sezioni
-    if (text.length > sectionSize) {
-        for (let i = 0; i < numSections; i++) {
-            const start = i * sectionSize;
-            const end = Math.min((i + 1) * sectionSize, text.length);
-            
-            // Trova un punto di interruzione naturale vicino alla posizione ideale
-            let breakPoint = start;
-            if (i > 0) {
-                // Cerca il primo punto seguito da spazio dopo start
-                const periodIndex = text.indexOf('. ', start);
-                if (periodIndex > start && periodIndex < end - 100) {
-                    breakPoint = periodIndex + 2;
-                }
-            }
-            
-            const sectionEnd = (i === numSections - 1) ? text.length : end;
-            
-            // Cerca un punto di fine naturale
-            let endPoint = sectionEnd;
-            if (i < numSections - 1) {
-                // Cerca l'ultimo punto prima di end
-                const lastPeriod = text.lastIndexOf('. ', end);
-                if (lastPeriod > start + 100 && lastPeriod < end) {
-                    endPoint = lastPeriod + 2;
-                }
-            }
-            
-            const sectionContent = text.substring(breakPoint, endPoint);
-            
-            chapters.push({
-                title: `Sezione ${i + 1}`,
-                startPosition: breakPoint,
-                content: sectionContent,
-                type: 'chapter'
-            });
-        }
-    } else {
-        // Se il testo è breve, consideralo come un unico capitolo
-        chapters.push({
-            title: 'Intero documento',
-            startPosition: 0,
-            content: text,
-            type: 'normal'
-        });
-    }
-    
-    // Rileva potenziali titoli nel testo per migliorare i titoli delle sezioni
-    const titlePattern = /\n([A-Z][A-Za-zÀ-ú\s',;:.]{5,60})\n/g;
-    let titleMatch;
-    
-    while ((titleMatch = titlePattern.exec(text)) !== null) {
-        // Verifica se questo titolo è all'inizio di un capitolo esistente
-        const titlePos = titleMatch.index;
-        const matchingChapter = chapters.find(ch => 
-            Math.abs(ch.startPosition - titlePos) < 200);
-        
-        if (matchingChapter) {
-            // Aggiorna il titolo del capitolo
-            matchingChapter.title = titleMatch[1].trim();
-        }
-    }
-    
-    // Debug - verifica il contenuto dei capitoli
-    for (let i = 0; i < chapters.length; i++) {
-        console.log(`Capitolo ${i+1}: "${chapters[i].title}" - ${chapters[i].content.length} caratteri`);
-        if (chapters[i].content.length > 0) {
-            console.log(`Inizio: ${chapters[i].content.substring(0, Math.min(50, chapters[i].content.length))}`);
-        }
-    }
-}
-
-       // Funzione per rimuovere falsi positivi e combinare capitoli duplicati
-       function cleanupChapterMatches(matches, fullText) {
-           if (matches.length <= 1) return matches;
-           
-           const cleanMatches = [];
-           
-           for (let i = 0; i < matches.length; i++) {
-               // Calcola la distanza dal match precedente e successivo
-               const prevDistance = i > 0 ? matches[i].startPosition - matches[i-1].startPosition : Infinity;
-               const nextDistance = i < matches.length - 1 ? matches[i+1].startPosition - matches[i].startPosition : Infinity;
-               
-               // Se il titolo è molto vicino a un altro, potrebbe essere un falso positivo o parte dello stesso titolo
-               if (prevDistance < 50) {
-                   // Probabilmente parte dello stesso titolo o falso positivo
-                   continue;
-               }
-               
-               // Verifica se il titolo è isolato (non fa parte del testo corrente)
-               const surroundingText = fullText.substring(
-                   Math.max(0, matches[i].startPosition - 50),
-                   Math.min(fullText.length, matches[i].startPosition + matches[i].rawMatch.length + 50)
-               );
-               
-               // Verifica se il titolo è seguito da contenuto sufficiente
-               const contentLength = i < matches.length - 1 
-                   ? matches[i+1].startPosition - (matches[i].startPosition + matches[i].rawMatch.length)
-                   : fullText.length - (matches[i].startPosition + matches[i].rawMatch.length);
-               
-               // Verifica se il titolo è isolato con spazio bianco attorno
-               const hasWhitespaceBefore = /\n\s*\n/.test(surroundingText.substring(0, 50));
-               const hasWhitespaceAfter = /\n\s*\n/.test(surroundingText.substring(matches[i].rawMatch.length));
-               
-               // Un vero titolo di capitolo dovrebbe avere spazio bianco prima o dopo
-               // e dovrebbe avere contenuto significativo
-               if ((hasWhitespaceBefore || hasWhitespaceAfter) && contentLength > 200) {
-                   // Questo sembra un titolo di capitolo valido
-                   cleanMatches.push(matches[i]);
-               }
-               // Caso speciale per l'inizio del documento
-               else if (matches[i].startPosition < 100 && contentLength > 300) {
-                   cleanMatches.push(matches[i]);
-               }
-           }
-           
-           return cleanMatches;
-       }
-
-       // Aggiorna la lista dei capitoli nell'UI
-       function updateChaptersList() {
-           // Svuota la lista
-           chaptersList.innerHTML = '';
-           
-           // Aggiungi ciascun capitolo
-           chapters.forEach((chapter, index) => {
-               const chapterItem = document.createElement('div');
-               chapterItem.className = 'chapter-item';
-               
-               // Aggiungi un'icona o un indicatore per il tipo di sezione
-               let typeIndicator = '';
-               switch(chapter.type) {
-                   case 'chapter': typeIndicator = '📕 '; break;
-                   case 'title': typeIndicator = '📑 '; break;
-                   case 'colophon': typeIndicator = '©️ '; break;
-                   case 'dedication': typeIndicator = '❤️ '; break;
-                   case 'quote': typeIndicator = '💬 '; break;
-                   default: typeIndicator = '📄 ';
-               }
-               
-               chapterItem.innerHTML = `
-                   <div>${typeIndicator}${index + 1}. ${chapter.title}</div>
-                   <div class="chapter-actions">
-                       <button class="small-button" data-action="edit" data-index="${index}">Modifica</button>
-                       <button class="small-button" data-action="delete" data-index="${index}">Elimina</button>
-                   </div>
-               `;
-               chaptersList.appendChild(chapterItem);
-               
-               // Aggiungi event listeners
-               const editBtn = chapterItem.querySelector('[data-action="edit"]');
-               const deleteBtn = chapterItem.querySelector('[data-action="delete"]');
-               
-               editBtn.addEventListener('click', () => openEditChapterModal(index));
-               deleteBtn.addEventListener('click', () => deleteChapter(index));
-           });
-           
-           // Aggiorna anche il selettore dei capitoli
-           updateChapterSelect();
-       }
-
-       // Aggiorna il selettore dei capitoli
-       function updateChapterSelect() {
-           chapterSelect.innerHTML = '';
-           
-           chapters.forEach((chapter, index) => {
-               const option = document.createElement('option');
-               option.value = index;
-               
-               // Aggiungi un'icona o un indicatore per il tipo di sezione
-               let typeIndicator = '';
-               switch(chapter.type) {
-                   case 'chapter': typeIndicator = '📕 '; break;
-                   case 'title': typeIndicator = '📑 '; break;
-                   case 'colophon': typeIndicator = '©️ '; break;
-                   case 'dedication': typeIndicator = '❤️ '; break;
-                   case 'quote': typeIndicator = '💬 '; break;
-                   default: typeIndicator = '📄 ';
-               }
-               
-               option.textContent = `${typeIndicator}${index + 1}. ${chapter.title}`;
-               chapterSelect.appendChild(option);
-           });
-           
-           // Carica il contenuto del primo capitolo se disponibile
-           if (chapters.length > 0) {
-               loadChapterContent();
-           }
-       }
-
-       // Carica il contenuto del capitolo selezionato nell'editor
-       function loadChapterContent() {
-           const selectedIndex = parseInt(chapterSelect.value);
-           if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= chapters.length) return;
-           
-           const chapter = chapters[selectedIndex];
-           
-           // Imposta il tipo di contenuto nei radio button
-           const contentTypeRadio = document.querySelector(`input[value="${chapter.type}"]`);
-           if (contentTypeRadio) {
-               contentTypeRadio.checked = true;
-           } else {
-               document.querySelector('input[value="normal"]').checked = true;
-           }
-           
-           textEditor.value = chapter.content;
-           saveTextBtn.disabled = false;
-       }
-
-       // Aggiorna il tipo di contenuto del capitolo corrente
-       function updateContentType(type) {
-           const selectedIndex = parseInt(chapterSelect.value);
-           if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= chapters.length) return;
-           
-           chapters[selectedIndex].type = type;
-           updateChaptersList();
-       }
-
-       // Aggiungi un nuovo capitolo
-       function addNewChapter() {
-           currentEditingChapterIndex = -1;
-           chapterTitle.value = '';
-           chapterStartPosition.value = extractedText.length;
-           sectionType.value = 'normal';
-           openModal();
-       }
-
-       // Apri il modal per modificare un capitolo
-       function openEditChapterModal(index) {
-           currentEditingChapterIndex = index;
-           const chapter = chapters[index];
-           
-           chapterTitle.value = chapter.title;
-           chapterStartPosition.value = chapter.startPosition;
-           sectionType.value = chapter.type || 'normal';
-           
-           openModal();
-       }
-
-       // Salva le modifiche al capitolo
-       function saveChapterChanges() {
-           const title = chapterTitle.value.trim();
-           const startPos = parseInt(chapterStartPosition.value);
-           const type = sectionType.value;
-           
-           if (!title) {
-               showNotification('Inserisci un titolo per la sezione.', true);
-               return;
-           }
-           
-           if (isNaN(startPos) || startPos < 0 || startPos >= extractedText.length) {
-               showNotification('Posizione di inizio non valida.', true);
-               return;
-           }
-           
-           if (currentEditingChapterIndex === -1) {
-               // Nuovo capitolo
-               const newChapter = {
-                   title: title,
-                   startPosition: startPos,
-                   content: extractedText.substring(startPos).trim(),
-type: type
-               };
-               
-               chapters.push(newChapter);
-               
-               // Aggiorna i capitoli esistenti
-               updateChapterBoundaries();
-           } else {
-               // Modifica di un capitolo esistente
-               chapters[currentEditingChapterIndex].title = title;
-               chapters[currentEditingChapterIndex].startPosition = startPos;
-               chapters[currentEditingChapterIndex].type = type;
-               
-               // Aggiorna il contenuto in base alla nuova posizione
-               updateChapterBoundaries();
-           }
-           
-           // Aggiorna l'UI
-           updateChaptersList();
-           
-           // Chiudi il modal
-           closeModal();
-       }
-
-       // Aggiorna i confini dei capitoli dopo modifiche
-       function updateChapterBoundaries() {
-           // Ordina i capitoli per posizione
-           chapters.sort((a, b) => a.startPosition - b.startPosition);
-           
-           // Aggiorna il contenuto di ciascun capitolo
-           for (let i = 0; i < chapters.length; i++) {
-               const startPos = chapters[i].startPosition;
-               const endPos = (i < chapters.length - 1) ? chapters[i+1].startPosition : extractedText.length;
-               
-               chapters[i].content = extractedText.substring(startPos, endPos).trim();
-           }
-       }
-
-       // Elimina un capitolo
-       function deleteChapter(index) {
-           if (chapters.length <= 1) {
-               showNotification('Non è possibile eliminare l\'unica sezione presente.', true);
-               return;
-           }
-           
-           // Rimuovi il capitolo
-           chapters.splice(index, 1);
-           
-           // Aggiorna l'UI
-           updateChaptersList();
-           
-           showNotification('Sezione eliminata con successo.');
-       }
-
-       // Procedi alla fase di modifica del testo
-       function goToEditStep() {
-           goToStep(3);
-           loadChapterContent();
-       }
-
-       // Salva le modifiche al testo del capitolo
-       function saveTextChanges() {
-           const selectedIndex = parseInt(chapterSelect.value);
-           if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= chapters.length) return;
-           
-           // Salva il contenuto modificato
-           chapters[selectedIndex].content = textEditor.value;
-           
-           // Salva anche il tipo di contenuto
-           const selectedType = document.querySelector('input[name="contentType"]:checked').value;
-           chapters[selectedIndex].type = selectedType;
-           
-           showNotification('Modifiche salvate con successo.');
-       }
-
-       // Genera il file EPUB
-       async function generateEpub() {
-           try {
-               // Salva le eventuali modifiche in corso
-               saveTextChanges();
-               
-               // Mostra il loader
-               generateEpubBtn.disabled = true;
-               generateSpinner.classList.remove('spinner-hidden');
-               generateSpinner.classList.add('spinner-visible');
-               
-               // Crea un nuovo file EPUB (ZIP)
-               const zip = new JSZip();
-               
-               // Aggiungi il file mimetype (deve essere il primo e non compresso)
-               zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
-               
-               // Crea la struttura delle cartelle
-               const metaInf = zip.folder('META-INF');
-               const oebps = zip.folder('OEBPS');
-               const textFolder = oebps.folder('text');
-               const cssFolder = oebps.folder('css');
-               const imagesFolder = oebps.folder('images');
-               
-               // Aggiungi il file container.xml
-               metaInf.file('container.xml', `<?xml version="1.0" encoding="UTF-8"?>
-               <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
-                 <rootfiles>
-                   <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
-                 </rootfiles>
-               </container>`);
-               
-               // Aggiungi il CSS con stili migliorati per i vari tipi di contenuto
-               // Ora con page-break solo per i capitoli
-               cssFolder.file('style.css', `
-               body {
-                   font-family: serif;
-                   margin: 5%;
-                   text-align: justify;
-                   line-height: 1.5;
-               }
-               h1, h2, h3, h4, h5, h6 {
-                   text-align: center;
-                   line-height: 1.2;
-                   margin: 1em 0;
-               }
-               .title {
-                   font-size: 2em;
-                   font-weight: bold;
-                   margin-bottom: 1em;
-                   text-align: center;
-               }
-               .author {
-                   font-size: 1.5em;
-                   text-align: center;
-                   margin-bottom: 2em;
-               }
-               .chapter {
-                   page-break-before: always;
-               }
-               .chapter-title {
-                   font-size: 1.5em;
-                   font-weight: bold;
-                   text-align: center;
-                   margin-bottom: 1.5em;
-                   margin-top: 1.5em;
-               }
-               p {
-                   text-indent: 1.5em;
-                   margin: 0;
-               }
-               .dedication {
-                   font-style: italic;
-                   text-align: center;
-                   margin: 2em 0;
-               }
-               .quote {
-                   font-style: italic;
-                   margin: 2em 5%;
-                   text-align: justify;
-               }
-               .quote .attribution {
-                   text-align: right;
-                   margin-top: 1em;
-               }
-               .colophon {
-                   font-size: 0.9em;
-                   text-align: center;
-                   margin: 2em 0;
-               }
-               .footnote {
-                   font-size: 0.9em;
-                   margin-top: 1em;
-                   border-top: 1px solid #ccc;
-                   padding-top: 0.5em;
-               }
-               .preserve-whitespace {
-                   white-space: pre-wrap;
-               }
-               .no-indent {
-                   text-indent: 0;
-               }
-               .centered {
-                   text-align: center;
-                   text-indent: 0;
-               }
-               .main-chapter {
-                   font-size: 1.1em;
-               }
-               .main-chapter .chapter-title {
-                   font-size: 1.7em;
-               }
-               `);
-               
-               // Crea la pagina di copertina
-               const coverHtml = `<?xml version="1.0" encoding="UTF-8"?>
-               <!DOCTYPE html>
-               <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
-               <head>
-                   <meta charset="UTF-8"/>
-                   <title>${escapeXml(bookTitle.value)}</title>
-                   <link rel="stylesheet" type="text/css" href="../css/style.css"/>
-               </head>
-               <body>
-                   <div class="title">${escapeXml(bookTitle.value)}</div>
-                   ${bookAuthor.value ? `<div class="author">di ${escapeXml(bookAuthor.value)}</div>` : ''}
-               </body>
-               </html>`;
-               
-               textFolder.file('cover.xhtml', coverHtml);
-               
-               // Crea la pagina di titolo
-               const titleHtml = `<?xml version="1.0" encoding="UTF-8"?>
-               <!DOCTYPE html>
-               <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
-               <head>
-                   <meta charset="UTF-8"/>
-                   <title>${escapeXml(bookTitle.value)}</title>
-                   <link rel="stylesheet" type="text/css" href="../css/style.css"/>
-               </head>
-               <body>
-                   <div class="title">${escapeXml(bookTitle.value)}</div>
-                   ${bookAuthor.value ? `<div class="author">di ${escapeXml(bookAuthor.value)}</div>` : ''}
-                   ${bookDescription.value ? `<div class="dedication">${escapeXml(bookDescription.value)}</div>` : ''}
-               </body>
-               </html>`;
-               
-               textFolder.file('title.xhtml', titleHtml);
-               
-               // Crea i file dei capitoli
-               const chapterFiles = [];
-               
-               // Raccogli tutti i capitoli veri (non elementi speciali)
-               const mainChapters = chapters.filter(ch => ch.type === 'chapter');
-               
-               for (let i = 0; i < chapters.length; i++) {
-                   const chapter = chapters[i];
-                   const filename = `chapter${(i+1).toString().padStart(3, '0')}.xhtml`;
-                   
-                   // Formatta il contenuto in base al tipo di sezione
-                   let contentHtml = '';
-                   let chapterClass = '';
-                   let titleHtml = '';
-                   
-                   switch (chapter.type) {
-                       case 'dedication':
-                           contentHtml = formatDedication(chapter.content);
-                           chapterClass = 'dedication';
-                           titleHtml = `<h2>${escapeXml(chapter.title)}</h2>`;
-                           break;
-                           
-                       case 'quote':
-                           contentHtml = formatQuote(chapter.content);
-                           chapterClass = 'quote';
-                           titleHtml = `<h2>${escapeXml(chapter.title)}</h2>`;
-                           break;
-                           
-                       case 'colophon':
-                           contentHtml = formatColophon(chapter.content);
-                           chapterClass = 'colophon';
-                           titleHtml = `<h2>${escapeXml(chapter.title)}</h2>`;
-                           break;
-                           
-                       case 'title':
-                           contentHtml = formatTitle(chapter.content);
-                           chapterClass = 'title';
-                           titleHtml = '';  // Il titolo è già nel contenuto
-                           break;
-                           
-                       case 'chapter':
-                           // Verifica se è un capitolo numerato effettivo
-                           const isMainChapter = mainChapters.length > 1 && mainChapters.includes(chapter);
-                           // Imposta page-break per i capitoli
-                           chapterClass = isMainChapter ? 'chapter main-chapter' : 'chapter';
-                           
-                           // Testo formattato appropriatamente
-                           contentHtml = formatNormalText(chapter.content);
-                           
-                           // Titolo del capitolo con formattazione appropriata
-                           titleHtml = `<div class="chapter-title">${escapeXml(chapter.title)}</div>`;
-                           break;
-                           
-                       case 'normal':
-                       default:
-                           contentHtml = formatNormalText(chapter.content);
-                           chapterClass = 'normal';
-                           titleHtml = chapter.title !== 'Intero documento' ? 
-                               `<div class="chapter-title">${escapeXml(chapter.title)}</div>` : '';
-                           break;
-                   }
-                   
-                   const chapterHtml = `<?xml version="1.0" encoding="UTF-8"?>
-                   <!DOCTYPE html>
-                   <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
-                   <head>
-                       <meta charset="UTF-8"/>
-                       <title>${escapeXml(chapter.title)}</title>
-                       <link rel="stylesheet" type="text/css" href="../css/style.css"/>
-                   </head>
-                   <body>
-                       <div class="${chapterClass}">
-                           ${titleHtml}
-                           ${contentHtml}
-                       </div>
-                   </body>
-                   </html>`;
-                   
-                   textFolder.file(filename, chapterHtml);
-                   
-                   // Aggiungi alla lista dei file di capitolo solo quelli che dovrebbero apparire nell'indice
-                   if (chapter.type === 'chapter' || chapter.type === 'normal' || 
-                       chapter.type === 'dedication' || chapter.type === 'colophon') {
-                       chapterFiles.push({
-                           id: `chapter${i+1}`,
-                           filename: filename,
-                           title: chapter.title,
-                           type: chapter.type
-                       });
-                   }
-               }
-               
-               // Crea la Table of Contents
-               const tocHtml = `<?xml version="1.0" encoding="UTF-8"?>
-               <!DOCTYPE html>
-               <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
-               <head>
-                   <meta charset="UTF-8"/>
-                   <title>Indice</title>
-                   <link rel="stylesheet" type="text/css" href="../css/style.css"/>
-               </head>
-               <body>
-                   <div class="chapter-title">Indice</div>
-                   <nav epub:type="toc" id="toc">
-                       <ol>
-                           <li><a href="cover.xhtml">Copertina</a></li>
-                           <li><a href="title.xhtml">Frontespizio</a></li>
-                           ${chapterFiles.map(chapter => {
-                               // Aggiungi classi speciali o indentazione per l'indice in base al tipo
-                               let className = '';
-                               if (chapter.type === 'chapter') {
-                                   className = ' class="toc-chapter"';
-                               }
-                               return `<li${className}><a href="${chapter.filename}">${escapeXml(chapter.title)}</a></li>`;
-                           }).join('\n')}
-                       </ol>
-                   </nav>
-               </body>
-               </html>`;
-               
-               textFolder.file('toc.xhtml', tocHtml);
-               
-               // Crea il file NCX (Navigation Control file for XML) per la compatibilità
-               const ncxContent = `<?xml version="1.0" encoding="UTF-8"?>
-               <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
-                   <head>
-                       <meta name="dtb:uid" content="urn:uuid:${generateUUID()}"/>
-                       <meta name="dtb:depth" content="1"/>
-                       <meta name="dtb:totalPageCount" content="0"/>
-                       <meta name="dtb:maxPageNumber" content="0"/>
-                   </head>
-                   <docTitle>
-                       <text>${escapeXml(bookTitle.value)}</text>
-                   </docTitle>
-                   <navMap>
-                       <navPoint id="navpoint-1" playOrder="1">
-                           <navLabel>
-                               <text>Copertina</text>
-                           </navLabel>
-                           <content src="text/cover.xhtml"/>
-                       </navPoint>
-                       <navPoint id="navpoint-2" playOrder="2">
-                           <navLabel>
-                               <text>Frontespizio</text>
-                           </navLabel>
-                           <content src="text/title.xhtml"/>
-                       </navPoint>
-                       ${chapterFiles.map((chapter, index) => 
-                           `<navPoint id="navpoint-${index+3}" playOrder="${index+3}">
-                               <navLabel>
-                                   <text>${escapeXml(chapter.title)}</text>
-                               </navLabel>
-                               <content src="text/${chapter.filename}"/>
-                           </navPoint>`
-                       ).join('\n')}
-                   </navMap>
-               </ncx>`;
-               
-               oebps.file('toc.ncx', ncxContent);
-               
-               // Crea il file OPF (Open Packaging Format)
-               const opfContent = `<?xml version="1.0" encoding="UTF-8"?>
-               <package xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookID" version="3.0">
-                   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
-                       <dc:identifier id="BookID">urn:uuid:${generateUUID()}</dc:identifier>
-                       <dc:title>${escapeXml(bookTitle.value)}</dc:title>
-                       ${bookAuthor.value ? `<dc:creator>${escapeXml(bookAuthor.value)}</dc:creator>` : ''}
-                       <dc:language>${escapeXml(bookLanguage.value)}</dc:language>
-                       <dc:date>${new Date().toISOString().split('T')[0]}</dc:date>
-                       <meta property="dcterms:modified">${new Date().toISOString().replace(/\.\d+Z$/, 'Z')}</meta>
-                   </metadata>
-                   <manifest>
-                       <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
-                       <item id="nav" href="text/toc.xhtml" properties="nav" media-type="application/xhtml+xml"/>
-                       <item id="css" href="css/style.css" media-type="text/css"/>
-                       <item id="cover" href="text/cover.xhtml" media-type="application/xhtml+xml"/>
-                       <item id="title" href="text/title.xhtml" media-type="application/xhtml+xml"/>
-                       ${chapterFiles.map(chapter => 
-                           `<item id="${chapter.id}" href="text/${chapter.filename}" media-type="application/xhtml+xml"/>`
-                       ).join('\n')}
-                   </manifest>
-                   <spine toc="ncx">
-                       <itemref idref="cover"/>
-                       <itemref idref="title"/>
-                       <itemref idref="nav"/>
-                       ${chapterFiles.map(chapter => 
-                           `<itemref idref="${chapter.id}"/>`
-                       ).join('\n')}
-                   </spine>
-               </package>`;
-               
-               oebps.file('content.opf', opfContent);
-               
-               // Genera il file ZIP
-               const epubContent = await zip.generateAsync({
-                   type: 'blob',
-                   mimeType: 'application/epub+zip',
-                   compression: 'DEFLATE',
-                   compressionOptions: { level: 9 }
-               });
-               
-               // Memorizza il blob per il download
-               epubBlob = epubContent;
-               
-               // Vai al passo finale
-               goToStep(4);
-               
-           } catch (error) {
-               console.error('Errore nella generazione dell\'EPUB:', error);
-               showNotification('Si è verificato un errore durante la generazione dell\'EPUB. ' + error.message, true);
-           } finally {
-               // Nascondi il loader
-               generateSpinner.classList.remove('spinner-visible');
-               generateSpinner.classList.add('spinner-hidden');
-               generateEpubBtn.disabled = false;
-           }
-       }
-
-       // Formatta il testo normale (capitoli e testo generico)
-       function formatNormalText(text) {
-           // Dividi in paragrafi
-           const paragraphs = text.split(/\n\s*\n/);
-           let html = '';
-           
-           for (const paragraph of paragraphs) {
-               if (paragraph.trim()) {
-                   // Verifica se è un paragrafo centrato (tutto maiuscolo o inizia con * o simili)
-                   if (/^[A-ZÀÈÌÒÙ\s,.;:'"!?0-9]+$/.test(paragraph) || 
-                       /^[*\s_-]+/.test(paragraph)) {
-                       html += `<p class="centered">${escapeXml(paragraph.trim())}</p>\n`;
-                   } 
-                   // Verifica se è un paragrafo senza indentazione (inizia con tab o spazi)
-                   else if (/^\s+/.test(paragraph)) {
-                       html += `<p class="no-indent">${escapeXml(paragraph.trim())}</p>\n`;
-                   } 
-                   // Paragrafo normale
-                   else {
-                       html += `<p>${escapeXml(paragraph.trim())}</p>\n`;
-                   }
-               }
-           }
-           
-           return html;
-       }
-
-       // Formatta una dedica
-       function formatDedication(text) {
-           return `<div class="dedication">${escapeXml(text.trim())}</div>`;
-       }
-
-       // Formatta una citazione
-       function formatQuote(text) {
-           const lines = text.split('\n');
-           let quoteText = '';
-           let attribution = '';
-           
-           // Cerca di separare la citazione dall'attribuzione
-           const attributionIndex = text.lastIndexOf('—');
-           if (attributionIndex !== -1) {
-               quoteText = text.substring(0, attributionIndex).trim();
-               attribution = text.substring(attributionIndex).trim();
-               
-               return `<div class="quote">
-                   <div class="quote-text">${escapeXml(quoteText)}</div>
-                   <div class="attribution">${escapeXml(attribution)}</div>
-               </div>`;
-           } else {
-               return `<div class="quote">${escapeXml(text.trim())}</div>`;
-           }
-       }
-
-       // Formatta un colophon
-       function formatColophon(text) {
-           // Preserva gli a capo nel colophon
-           return `<div class="colophon preserve-whitespace">${escapeXml(text.trim())}</div>`;
-       }
-
-       // Formatta un titolo
-       function formatTitle(text) {
-           // Preserva la formattazione originale per i titoli
-           return `<div class="title preserve-whitespace">${escapeXml(text.trim())}</div>`;
-       }
-
-       // Scarica il file EPUB
-       function downloadEpub() {
-           if (!epubBlob) {
-               showNotification('Nessun file EPUB generato. Riprova.', true);
-               return;
-           }
-           
-           // Crea un URL per il download
-           const url = URL.createObjectURL(epubBlob);
-           
-           // Crea un elemento link per il download
-           const a = document.createElement('a');
-           a.href = url;
-           a.download = `${bookTitle.value || 'libro'}.epub`;
-           document.body.appendChild(a);
-           
-           // Simula il click per avviare il download
-           a.click();
-           
-           // Rimuovi l'elemento e rilascia l'URL
-           setTimeout(() => {
-               document.body.removeChild(a);
-               URL.revokeObjectURL(url);
-           }, 100);
-           
-           showNotification('Download avviato con successo!');
-       }
-
-       // Resetta l'applicazione
-       function resetApp() {
-           // Resetta le variabili globali
-           currentPdfFile = null;
-           extractedText = '';
-           pdfDocument = null;
-           chapters = [];
-           currentEditingChapterIndex = -1;
-           epubBlob = null;
-           
-           // Resetta l'UI
-           fileInfo.style.display = 'none';
-           progressContainer.style.display = 'none';
-           progressBar.style.width = '0%';
-           textEditor.value = '';
-           
-           // Disabilita i pulsanti
-           extractTextBtn.disabled = true;
-           saveTextBtn.disabled = true;
-           proceedToEditBtn.disabled = true;
-           
-           // Resetta i campi
-           bookTitle.value = '';
-           bookAuthor.value = '';
-           bookDescription.value = '';
-           bookLanguage.value = 'it';
-           
-           // Torna al primo passo
-           goToStep(0);
-       }
-
-       // Passa a un determinato step
-       function goToStep(stepIndex) {
-           // Aggiorna la classe active
-           steps.forEach((step, index) => {
-               if (index <= stepIndex) {
-                   step.classList.add('active');
-               } else {
-                   step.classList.remove('active');
-               }
-           });
-       }
-
-       // Utility per aprire un modal
-       function openModal() {
-           chapterModal.style.display = 'flex';
-       }
-
-       // Utility per chiudere un modal
-       function closeModal() {
-           chapterModal.style.display = 'none';
-       }
-
-       // Mostra una notifica
-       function showNotification(message, isError = false) {
-           notification.textContent = message;
-           notification.className = 'notification' + (isError ? ' error' : '');
-           
-           // Mostra la notifica
-           notification.classList.add('show');
-           
-           // Nascondi la notifica dopo 3 secondi
-           setTimeout(() => {
-               notification.classList.remove('show');
-           }, 3000);
-       }
-
-       // Utility per leggere un file come ArrayBuffer
-       function readFileAsArrayBuffer(file) {
-           return new Promise((resolve, reject) => {
-               const reader = new FileReader();
-               reader.onload = () => resolve(reader.result);
-               reader.onerror = reject;
-               reader.readAsArrayBuffer(file);
-           });
-       }
-
-       // Utility per formattare la dimensione del file
-       function formatFileSize(bytes) {
-           if (bytes < 1024) {
-               return bytes + ' B';
-           } else if (bytes < 1024 * 1024) {
-               return (bytes / 1024).toFixed(2) + ' KB';
-           } else {
-               return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
-           }
-       }
-
-       // Utility per generare un UUID
-       function generateUUID() {
-           return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-               const r = Math.random() * 16 | 0;
-               const v = c === 'x' ? r : (r & 0x3 | 0x8);
-               return v.toString(16);
-           });
-       }
-
-       // Utility per escape dei caratteri XML
-       function escapeXml(unsafe) {
-           if (!unsafe) return '';
-           return unsafe
-               .replace(/&/g, '&amp;')
-               .replace(/</g, '&lt;')
-               .replace(/>/g, '&gt;')
-               .replace(/"/g, '&quot;')
-               .replace(/'/g, '&apos;');
-       }
-   </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
