@@ -798,177 +798,210 @@
         }
 
         // Estrazione del testo dal PDF
-        async function extractTextFromPdf() {
-            if (!currentPdfFile) return;
+// Estrazione del testo dal PDF
+async function extractTextFromPdf() {
+    if (!currentPdfFile) return;
+    
+    try {
+        // Mostra il loader
+        extractTextBtn.disabled = true;
+        extractSpinner.classList.remove('spinner-hidden');
+        extractSpinner.classList.add('spinner-visible');
+        
+        // Mostra la barra di progresso
+        progressContainer.style.display = 'block';
+        progressBar.style.width = '0%';
+        
+        // Carica il PDF
+        const arrayBuffer = await readFileAsArrayBuffer(currentPdfFile);
+        pdfDocument = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        
+        const numPages = pdfDocument.numPages;
+        let fullText = '';
+        let pageContents = []; // Memorizza il contenuto di ogni pagina separatamente
+        
+        // Estrai il testo da ogni pagina
+        for (let i = 1; i <= numPages; i++) {
+            const page = await pdfDocument.getPage(i);
+            const textContent = await page.getTextContent();
             
-            try {
-                // Mostra il loader
-                extractTextBtn.disabled = true;
-                extractSpinner.classList.remove('spinner-hidden');
-                extractSpinner.classList.add('spinner-visible');
+            let pageText = '';
+            let lastY, lastItem;
+            let currentLine = '';
+            let lines = [];
+            
+            // Ordina gli elementi di testo per posizione Y e poi X
+            const sortedItems = textContent.items.sort((a, b) => {
+                if (Math.abs(a.transform[5] - b.transform[5]) > 2) {
+                    // Ordina principalmente per coordinata Y (invertita perché l'origine è in alto)
+                    return b.transform[5] - a.transform[5];
+                } else {
+                    // Se sulla stessa linea, ordina per coordinata X
+                    return a.transform[4] - b.transform[4];
+                }
+            });
+            
+            // Combina gli elementi di testo con un'elaborazione migliorata delle linee
+            for (const item of sortedItems) {
+                // Se è una nuova riga (coordinata Y diversa)
+                if (lastY !== undefined && Math.abs(lastY - item.transform[5]) > 2) {
+                    if (currentLine.trim()) {
+                        lines.push(currentLine.trim());
+                    }
+                    currentLine = item.str;
+                } else {
+                    // Calcola lo spazio tra gli elementi per determinare se è uno spazio reale
+                    if (lastItem) {
+                        const lastTransform = lastItem.transform;
+                        const lastWidth = lastItem.width || 5; // Valore predefinito se manca
+                        const lastEndX = lastTransform[4] + lastWidth;
+                        const currentStartX = item.transform[4];
+                        const spacingThreshold = 3; // Soglia per determinare uno spazio significativo
+                        
+                        if (currentStartX - lastEndX > spacingThreshold) {
+                            currentLine += ' ' + item.str;
+                        } else {
+                            currentLine += item.str;
+                        }
+                    } else {
+                        currentLine += item.str;
+                    }
+                }
                 
-                // Mostra la barra di progresso
-                progressContainer.style.display = 'block';
-                progressBar.style.width = '0%';
-                
-                // Carica il PDF
-               const arrayBuffer = await readFileAsArrayBuffer(currentPdfFile);
-               pdfDocument = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-               
-               const numPages = pdfDocument.numPages;
-               let fullText = '';
-               let pageContents = []; // Memorizza il contenuto di ogni pagina separatamente
-               
-               // Estrai il testo da ogni pagina
-               for (let i = 1; i <= numPages; i++) {
-                   const page = await pdfDocument.getPage(i);
-                   const textContent = await page.getTextContent();
-                   
-                   let pageText = '';
-                   let lastY, lastItem;
-                   let currentLine = '';
-                   let lines = [];
-                   
-                   // Combina gli elementi di testo con un'elaborazione migliorata delle linee
-                   for (const item of textContent.items) {
-                       // Se è una nuova riga (coordinata Y diversa)
-                       if (lastY !== undefined && Math.abs(lastY - item.transform[5]) > 1) {
-                           if (currentLine.trim()) {
-                               lines.push(currentLine.trim());
-                           }
-                           currentLine = item.str;
-                       } else {
-                           // Calcola lo spazio tra gli elementi per determinare se è uno spazio reale
-                           if (lastItem) {
-                               const lastTransform = lastItem.transform;
-                               const lastWidth = lastItem.width;
-                               const lastEndX = lastTransform[4] + lastWidth;
-                               const currentStartX = item.transform[4];
-                               const spacingThreshold = 3; // Soglia per determinare uno spazio significativo
-                               
-                               if (currentStartX - lastEndX > spacingThreshold) {
-                                   currentLine += ' ' + item.str;
-                               } else {
-                                   currentLine += item.str;
-                               }
-                           } else {
-                               currentLine += item.str;
-                           }
-                       }
-                       
-                       lastY = item.transform[5];
-                       lastItem = item;
-                   }
-                   
-                   // Aggiungi l'ultima riga
-                   if (currentLine.trim()) {
-                       lines.push(currentLine.trim());
-                   }
-                   
-                   // Unisci le linee in testo
-                   pageText = lines.join('\n');
-                   
-                   // Applica la pulizia del testo
-                   pageText = cleanPageText(pageText, i, numPages);
-                   
-                   // Memorizza il testo della pagina
-                   pageContents.push({
-                       pageNum: i,
-                       content: pageText
-                   });
-                   
-                   // Aggiorna la barra di progresso
-                   const progress = (i / numPages) * 100;
-                   progressBar.style.width = `${progress}%`;
-               }
-               
-               // Elabora il testo nel suo insieme
-               fullText = processExtractedText(pageContents);
-               
-               // Pulisci il testo completo
-               extractedText = fullText;
-               
-               // Analizza il testo per i metadati e i capitoli
-               analyzeText(extractedText);
-               
-               // Mostra il passo 3
-               goToStep(2);
-               
-               // Abilita il pulsante per procedere
-               proceedToEditBtn.disabled = false;
-               
-           } catch (error) {
-               console.error('Errore nell\'estrazione del testo:', error);
-               showNotification('Si è verificato un errore durante l\'estrazione del testo. ' + error.message, true);
-           } finally {
-               // Nascondi il loader
-               extractSpinner.classList.remove('spinner-visible');
-               extractSpinner.classList.add('spinner-hidden');
-               extractTextBtn.disabled = false;
-           }
-       }
+                lastY = item.transform[5];
+                lastItem = item;
+            }
+            
+            // Aggiungi l'ultima riga
+            if (currentLine.trim()) {
+                lines.push(currentLine.trim());
+            }
+            
+            // Unisci le linee in testo
+            pageText = lines.join('\n');
+            
+            // Debug - stampa le prime 100 char di ogni pagina per verificare
+            console.log(`Pagina ${i}/${numPages} - Prime 100 caratteri: ${pageText.substring(0, 100)}...`);
+            
+            // Applica la pulizia del testo
+            pageText = cleanPageText(pageText, i, numPages);
+            
+            // Memorizza il testo della pagina
+            pageContents.push({
+                pageNum: i,
+                content: pageText
+            });
+            
+            // Aggiorna la barra di progresso
+            const progress = (i / numPages) * 100;
+            progressBar.style.width = `${progress}%`;
+        }
+        
+        // Elabora il testo nel suo insieme
+        fullText = processExtractedText(pageContents);
+        
+        // Debug - stampa la lunghezza del testo totale estratto
+        console.log(`Testo totale estratto: ${fullText.length} caratteri`);
+        if (fullText.length > 0) {
+            console.log(`Inizio: ${fullText.substring(0, 100)}...`);
+            console.log(`Fine: ...${fullText.substring(fullText.length - 100)}`);
+        }
+        
+        // Pulisci il testo completo
+        extractedText = fullText;
+        
+        // Analizza il testo per i metadati e i capitoli
+        analyzeText(extractedText);
+        
+        // Mostra il passo 3
+        goToStep(2);
+        
+        // Abilita il pulsante per procedere
+        proceedToEditBtn.disabled = false;
+        
+    } catch (error) {
+        console.error('Errore nell\'estrazione del testo:', error);
+        showNotification('Si è verificato un errore durante l\'estrazione del testo. ' + error.message, true);
+    } finally {
+        // Nascondi il loader
+        extractSpinner.classList.remove('spinner-visible');
+        extractSpinner.classList.add('spinner-hidden');
+        extractTextBtn.disabled = false;
+    }
+}
 
        // Elabora il testo estratto applicando tutte le opzioni di pulizia
-       function processExtractedText(pageContents) {
-           let processedText = '';
-           let previousPageEndedWithHyphen = false;
-           let previousPageLastLine = '';
-           
-           for (let i = 0; i < pageContents.length; i++) {
-               let pageText = pageContents[i].content;
-               let pageLines = pageText.split('\n');
-               
-               // Gestisci l'hyphenation fra le pagine
-               if (previousPageEndedWithHyphen && fixHyphenation.checked) {
-                   if (pageLines.length > 0 && pageLines[0].trim()) {
-                       // Rimuovi il trattino e unisci con la prima riga della pagina corrente
-                       previousPageLastLine = previousPageLastLine.substring(0, previousPageLastLine.length - 1);
-                       pageLines[0] = previousPageLastLine + pageLines[0];
-                       
-                       // Aggiorna il testo della pagina
-                       pageText = pageLines.join('\n');
-                       
-                       // Aggiorna anche il testo elaborato
-                       if (processedText.endsWith('-\n')) {
-                           processedText = processedText.substring(0, processedText.length - 2);
-                       }
-                   }
-               }
-               
-               // Controlla se l'ultima riga della pagina termina con un trattino
-               if (pageLines.length > 0) {
-                   previousPageLastLine = pageLines[pageLines.length - 1];
-                   previousPageEndedWithHyphen = previousPageLastLine.endsWith('-');
-               } else {
-                   previousPageEndedWithHyphen = false;
-                   previousPageLastLine = '';
-               }
-               
-               // Gestisci interruzioni di riga intelligenti
-               if (smartLineBreaks.checked) {
-                   pageText = handleSmartLineBreaks(pageText);
-               }
-               
-               // Aggiungi il testo della pagina al testo elaborato
-               // Rimuovi sempre le interruzioni di pagina (verranno aggiunte solo all'inizio dei capitoli tramite CSS)
-               if (i > 0) {
-                   processedText += processedText.endsWith('\n') ? '' : '\n';
-                   processedText += pageText;
-               } else {
-                   processedText = pageText;
-               }
-           }
-           
-           // Riparazione della sillabazione all'interno delle pagine
-           if (fixHyphenation.checked) {
-               processedText = fixInternalHyphenation(processedText);
-           }
-           
-           // Pulizia finale
-           processedText = cleanExtractedText(processedText);
-           
-           return processedText;
-       }
+// Elabora il testo estratto applicando tutte le opzioni di pulizia
+function processExtractedText(pageContents) {
+    if (pageContents.length === 0) {
+        return '';
+    }
+    
+    let processedText = '';
+    let previousPageEndedWithHyphen = false;
+    let previousPageLastLine = '';
+    
+    for (let i = 0; i < pageContents.length; i++) {
+        let pageText = pageContents[i].content;
+        
+        // Verifica che il testo della pagina non sia vuoto
+        if (!pageText || pageText.trim() === '') {
+            continue;
+        }
+        
+        let pageLines = pageText.split('\n');
+        
+        // Gestisci l'hyphenation fra le pagine
+        if (previousPageEndedWithHyphen && fixHyphenation.checked) {
+            if (pageLines.length > 0 && pageLines[0].trim()) {
+                // Rimuovi il trattino e unisci con la prima riga della pagina corrente
+                previousPageLastLine = previousPageLastLine.substring(0, previousPageLastLine.length - 1);
+                pageLines[0] = previousPageLastLine + pageLines[0];
+                
+                // Aggiorna il testo della pagina
+                pageText = pageLines.join('\n');
+                
+                // Aggiorna anche il testo elaborato
+                if (processedText.endsWith('-\n')) {
+                    processedText = processedText.substring(0, processedText.length - 2);
+                }
+            }
+        }
+        
+        // Controlla se l'ultima riga della pagina termina con un trattino
+        if (pageLines.length > 0) {
+            previousPageLastLine = pageLines[pageLines.length - 1];
+            previousPageEndedWithHyphen = previousPageLastLine.endsWith('-');
+        } else {
+            previousPageEndedWithHyphen = false;
+            previousPageLastLine = '';
+        }
+        
+        // Gestisci interruzioni di riga intelligenti
+        if (smartLineBreaks.checked) {
+            pageText = handleSmartLineBreaks(pageText);
+        }
+        
+        // Aggiungi il testo della pagina al testo elaborato
+        // Rimuovi sempre le interruzioni di pagina (verranno aggiunte solo all'inizio dei capitoli tramite CSS)
+        if (processedText.length === 0) {
+            processedText = pageText;
+        } else {
+            processedText += processedText.endsWith('\n') ? '' : '\n';
+            processedText += pageText;
+        }
+    }
+    
+    // Riparazione della sillabazione all'interno delle pagine
+    if (fixHyphenation.checked) {
+        processedText = fixInternalHyphenation(processedText);
+    }
+    
+    // Pulizia finale
+    processedText = cleanExtractedText(processedText);
+    
+    return processedText;
+}
 
        // Gestisci interruzioni di riga intelligenti - mantieni solo quelle dopo punteggiatura
        function handleSmartLineBreaks(text) {
@@ -1206,117 +1239,178 @@
            }
        }
 
-       // Rilevamento dei capitoli nel testo
-       function detectChaptersInText(text) {
-           // Inizia con un array vuoto (le sezioni speciali potrebbero essere già state aggiunte)
-           if (chapters.length === 0) {
-               chapters = [];
-           }
-           
-           // Pattern migliorati per rilevare i titoli dei capitoli
-           const chapterPatterns = [
-               // Pattern espliciti per capitoli numerati (case-insensitive)
-               /\n\s*(Capitolo|Chapter|Cap\.|CAPITOLO)\s+(\d+|[IVXLCDM]+)[\s:.-]*(.*)?\n/gi,
-               
-               // Pattern per parti o sezioni
-               /\n\s*(Parte|Part|Sezione|Section|PARTE|PART)\s+(\d+|[IVXLCDM]+)[\s:.-]*(.*)?\n/gi,
-               
-               // Pattern per capitoli con solo numeri o numeri romani
-               /\n\s*(\d+|[IVXLCDM]+)[\s:.-][\s]*(.*)?\n/gi,
-               
-               // Pattern per titoli formattati (caratteri non alfanumerici prima/dopo o tutto maiuscolo)
-               /\n\s*[*_#]{1,3}\s*([A-Z][^.\n]{5,60})[*_#]{0,3}\s*\n/g,
-               
-               // Pattern per titoli in maiuscolo isolati (con almeno una riga vuota prima o dopo)
-               /\n\s*\n\s*([A-ZÀÈÌÒÙ][A-ZÀÈÌÒÙ\s',;:.]{4,60})\s*\n/g,
-               
-               // Pattern per titoli con numeri (es. "1. Introduzione")
-               /\n\s*(\d+[\.\)]+)\s+([A-Z][a-zàèìòùáéíóú\s',;:.]{4,60})\s*\n/g,
-               
-               // Pattern per titoli centrati (circa a metà di una pagina con spazio bianco sopra e sotto)
-               /\n\s*\n\s*\n\s*([A-Z][a-zA-Z\s',;:.]{5,50})\s*\n\s*\n/g
-           ];
-           
-           // Cerca match per ogni pattern
-           let matches = [];
-           
-           for (const pattern of chapterPatterns) {
-               let match;
-               while ((match = pattern.exec(text)) !== null) {
-                   // Estrai il titolo del capitolo
-                   let chapterTitle;
-                   
-                   // Diversi gruppi di cattura in base al pattern
-                   if (match[3]) {
-                       // Pattern tipo "Capitolo 1: Titolo"
-                       chapterTitle = `${match[1]} ${match[2]}: ${match[3].trim()}`;
-                   } else if (match[2] && match[1].match(/^\d+[\.\)]$/)) {
-                       // Pattern tipo "1. Titolo"
-                       chapterTitle = match[2].trim();
-                   } else if (match[2]) {
-                       // Pattern tipo "Capitolo 1" con titolo o "1. Titolo"
-                       chapterTitle = `${match[1]} ${match[2].trim()}`;
-                   } else {
-                       // Pattern con solo il titolo
-                       chapterTitle = match[1].trim();
-                   }
-                   
-                   // Memorizza la posizione dell'inizio del capitolo
-                   matches.push({
-                       title: chapterTitle,
-                       startPosition: match.index,
-                       rawMatch: match[0],  // Salva il testo del match per analisi e pulizia
-                       type: 'chapter'
-                   });
-               }
-           }
-           
-           // Aggiungi un pattern per rilevare il testo prima di qualsiasi capitolo (frontmatter)
-           if (matches.length > 0 && matches[0].startPosition > 100) {
-               // C'è del testo significativo prima del primo capitolo
-               const frontMatterText = text.substring(0, matches[0].startPosition);
-               
-               // Dividi il frontmatter in sezioni logiche
-               detectFrontMatterSections(frontMatterText);
-           }
-           
-           // Ordina i match per posizione
-           matches.sort((a, b) => a.startPosition - b.startPosition);
-           
-           // Rimuovi i duplicati e i falsi positivi
-           matches = cleanupChapterMatches(matches, text);
-           
-           // Crea i capitoli
-           if (matches.length > 0) {
-               for (let i = 0; i < matches.length; i++) {
-                   const startPos = matches[i].startPosition;
-                   const endPos = (i < matches.length - 1) ? matches[i+1].startPosition : text.length;
-                   
-                   // Ottieni il contenuto del capitolo escluso il titolo
-                   const titleLength = matches[i].rawMatch.length;
-                   const chapterContent = text.substring(startPos + titleLength, endPos).trim();
-                   
-                   chapters.push({
-                       title: matches[i].title,
-                       rawTitle: matches[i].rawMatch.trim(),
-                       startPosition: startPos,
-                       content: chapterContent,
-                       type: 'chapter'
-                   });
-               }
-           } else if (chapters.length === 0) {
-               // Se non sono stati rilevati capitoli e non ci sono altre sezioni, crea un unico capitolo
-               chapters = [{
-                   title: 'Intero documento',
-                   startPosition: 0,
-                   content: text,
-                   type: 'normal'
-               }];
-           }
-           
-           // Ordina tutti i capitoli e le sezioni per posizione
-           chapters.sort((a, b) => a.startPosition - b.startPosition);
-       }
+   // Rilevamento dei capitoli nel testo
+function detectChaptersInText(text) {
+    // Assicuriamoci che il testo non sia vuoto
+    if (!text || text.length === 0) {
+        chapters = [{
+            title: 'Intero documento',
+            startPosition: 0,
+            content: text || '',
+            type: 'normal'
+        }];
+        return;
+    }
+    
+    // Inizia con un array vuoto (le sezioni speciali potrebbero essere già state aggiunte)
+    if (chapters.length === 0) {
+        chapters = [];
+    }
+    
+    // Pattern migliorati per rilevare i titoli dei capitoli
+    const chapterPatterns = [
+        // Pattern espliciti per capitoli numerati (case-insensitive)
+        /\n\s*(Capitolo|Chapter|Cap\.|CAPITOLO)\s+(\d+|[IVXLCDM]+)[\s:.-]*(.*)?\n/gi,
+        
+        // Pattern per parti o sezioni
+        /\n\s*(Parte|Part|Sezione|Section|PARTE|PART)\s+(\d+|[IVXLCDM]+)[\s:.-]*(.*)?\n/gi,
+        
+        // Pattern per capitoli con solo numeri o numeri romani
+        /\n\s*(\d+|[IVXLCDM]+)[\s:.-][\s]*(.*)?\n/gi,
+        
+        // Pattern per titoli formattati (caratteri non alfanumerici prima/dopo o tutto maiuscolo)
+        /\n\s*[*_#]{1,3}\s*([A-Z][^.\n]{5,60})[*_#]{0,3}\s*\n/g,
+        
+        // Pattern per titoli in maiuscolo isolati (con almeno una riga vuota prima o dopo)
+        /\n\s*\n\s*([A-ZÀÈÌÒÙ][A-ZÀÈÌÒÙ\s',;:.]{4,60})\s*\n/g,
+        
+        // Pattern per titoli con numeri (es. "1. Introduzione")
+        /\n\s*(\d+[\.\)]+)\s+([A-Z][a-zàèìòùáéíóú\s',;:.]{4,60})\s*\n/g,
+        
+        // Pattern per titoli centrati (circa a metà di una pagina con spazio bianco sopra e sotto)
+        /\n\s*\n\s*\n\s*([A-Z][a-zA-Z\s',;:.]{5,50})\s*\n\s*\n/g
+    ];
+    
+    // Cerca match per ogni pattern
+    let matches = [];
+    
+    for (const pattern of chapterPatterns) {
+        let match;
+        while ((match = pattern.exec(text)) !== null) {
+            // Estrai il titolo del capitolo
+            let chapterTitle;
+            
+            // Diversi gruppi di cattura in base al pattern
+            if (match[3]) {
+                // Pattern tipo "Capitolo 1: Titolo"
+                chapterTitle = `${match[1]} ${match[2]}: ${match[3].trim()}`;
+            } else if (match[2] && match[1].match(/^\d+[\.\)]$/)) {
+                // Pattern tipo "1. Titolo"
+                chapterTitle = match[2].trim();
+            } else if (match[2]) {
+                // Pattern tipo "Capitolo 1" con titolo o "1. Titolo"
+                chapterTitle = `${match[1]} ${match[2].trim()}`;
+            } else {
+                // Pattern con solo il titolo
+                chapterTitle = match[1].trim();
+            }
+            
+            // Memorizza la posizione dell'inizio del capitolo
+            matches.push({
+                title: chapterTitle,
+                startPosition: match.index,
+                rawMatch: match[0],  // Salva il testo del match per analisi e pulizia
+                type: 'chapter'
+            });
+        }
+    }
+    
+    // Se non troviamo capitoli ma il testo è lungo abbastanza, cerchiamo di suddividerlo in porzioni gestibili
+    if (matches.length === 0 && text.length > 5000) {
+        // Cerca di dividere il testo in parti di circa 3000 caratteri ciascuna
+        // cercando le migliori interruzioni naturali (paragrafi vuoti)
+        const chunkSize = 3000;
+        let position = 0;
+        
+        while (position < text.length) {
+            // Cerca il punto ottimale per dividere il testo (paragrafo vuoto)
+            const endPosition = Math.min(position + chunkSize, text.length);
+            let breakPosition = text.indexOf('\n\n', position + 1000);  // Almeno 1000 caratteri dopo l'inizio
+            
+            if (breakPosition === -1 || breakPosition > endPosition) {
+                // Se non troviamo un punto ottimale, usa la fine di una frase
+                breakPosition = text.lastIndexOf('. ', endPosition) + 1;
+                
+                if (breakPosition <= position) {
+                    // Fallback: usa semplicemente la lunghezza desiderata
+                    breakPosition = endPosition;
+                }
+            }
+            
+            matches.push({
+                title: `Parte ${matches.length + 1}`,
+                startPosition: position,
+                rawMatch: '',
+                type: 'chapter'
+            });
+            
+            position = breakPosition;
+        }
+    }
+    
+    // Aggiungi un pattern per rilevare il testo prima di qualsiasi capitolo (frontmatter)
+    if (matches.length > 0 && matches[0].startPosition > 100) {
+        // C'è del testo significativo prima del primo capitolo
+        const frontMatterText = text.substring(0, matches[0].startPosition);
+        
+        // Dividi il frontmatter in sezioni logiche
+        detectFrontMatterSections(frontMatterText);
+    }
+    
+    // Ordina i match per posizione
+    matches.sort((a, b) => a.startPosition - b.startPosition);
+    
+    // Rimuovi i duplicati e i falsi positivi
+    matches = cleanupChapterMatches(matches, text);
+    
+    // Crea i capitoli
+    if (matches.length > 0) {
+        for (let i = 0; i < matches.length; i++) {
+            const startPos = matches[i].startPosition;
+            const endPos = (i < matches.length - 1) ? matches[i+1].startPosition : text.length;
+            
+            // Ottieni il contenuto del capitolo
+            let chapterContent;
+            if (matches[i].rawMatch) {
+                // Escludi il titolo se lo abbiamo identificato come pattern
+                const titleLength = matches[i].rawMatch.length;
+                chapterContent = text.substring(startPos + titleLength, endPos).trim();
+            } else {
+                // Altrimenti includi tutto il testo
+                chapterContent = text.substring(startPos, endPos).trim();
+            }
+            
+            chapters.push({
+                title: matches[i].title,
+                rawTitle: matches[i].rawMatch ? matches[i].rawMatch.trim() : '',
+                startPosition: startPos,
+                content: chapterContent,
+                type: 'chapter'
+            });
+        }
+    } 
+    
+    // Se non abbiamo ancora capitoli, crea un unico capitolo con tutto il testo
+    if (chapters.length === 0) {
+        chapters = [{
+            title: 'Intero documento',
+            startPosition: 0,
+            content: text,
+            type: 'normal'
+        }];
+    }
+    
+    // Ordina tutti i capitoli e le sezioni per posizione
+    chapters.sort((a, b) => a.startPosition - b.startPosition);
+    
+    // Debug - verifica che ogni capitolo abbia contenuto
+    for (let i = 0; i < chapters.length; i++) {
+        console.log(`Capitolo ${i+1}: "${chapters[i].title}" - Caratteri: ${chapters[i].content.length}`);
+        if (chapters[i].content.length === 0) {
+            console.warn(`ATTENZIONE: Capitolo ${i+1} vuoto!`);
+        }
+    }
+}
 
        // Funzione per rimuovere falsi positivi e combinare capitoli duplicati
        function cleanupChapterMatches(matches, fullText) {
