@@ -33,7 +33,7 @@
             color: var(--text-color);
             background-color: var(--background-color);
             padding: 20px;
-            max-width: 800px;
+            max-width: 1000px;
             margin: 0 auto;
         }
         
@@ -113,6 +113,15 @@
             cursor: not-allowed;
         }
         
+        .btn-secondary {
+            background-color: var(--light-text);
+            margin-left: 10px;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #555;
+        }
+        
         .options {
             margin: 20px 0;
             text-align: left;
@@ -169,6 +178,72 @@
             margin-top: 15px;
         }
         
+        .preview-container {
+            display: none;
+            margin-top: 30px;
+            text-align: left;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .preview-content {
+            font-family: serif;
+            line-height: 1.6;
+        }
+        
+        .preview-page {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px dashed #eee;
+        }
+        
+        .preview-page:last-child {
+            border-bottom: none;
+        }
+        
+        .chapter-title {
+            font-size: 1.5em;
+            text-align: center;
+            margin: 1em 0;
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+        
+        .page-number {
+            font-size: 0.8em;
+            color: var(--light-text);
+            text-align: right;
+            margin-top: 5px;
+        }
+        
+        .edit-area {
+            width: 100%;
+            min-height: 100px;
+            padding: 10px;
+            margin-top: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-family: inherit;
+        }
+        
+        .edit-controls {
+            margin-top: 10px;
+            text-align: right;
+        }
+        
         footer {
             text-align: center;
             margin-top: 40px;
@@ -187,6 +262,15 @@
             
             .drop-area {
                 padding: 30px 20px;
+            }
+            
+            .btn {
+                width: 100%;
+                margin-bottom: 10px;
+            }
+            
+            .btn-secondary {
+                margin-left: 0;
             }
         }
     </style>
@@ -235,6 +319,7 @@
             </div>
             
             <button id="convertBtn" class="btn" disabled><i class="fas fa-exchange-alt"></i> Converti in EPUB</button>
+            <button id="previewBtn" class="btn btn-secondary" disabled><i class="fas fa-eye"></i> Anteprima</button>
             
             <div id="progressContainer" class="progress-container">
                 <div class="progress-bar">
@@ -246,6 +331,16 @@
             <div id="result" class="result">
                 <h3><i class="fas fa-check-circle" style="color: var(--success-color);"></i> Conversione completata!</h3>
                 <a id="downloadLink" href="#" class="btn"><i class="fas fa-download"></i> Scarica EPUB</a>
+            </div>
+            
+            <div id="previewContainer" class="preview-container">
+                <div class="preview-header">
+                    <h3>Anteprima del testo elaborato</h3>
+                    <button id="closePreviewBtn" class="btn btn-secondary"><i class="fas fa-times"></i> Chiudi</button>
+                </div>
+                <div id="previewContent" class="preview-content">
+                    <!-- Il contenuto dell'anteprima verrà inserito qui -->
+                </div>
             </div>
         </div>
     </main>
